@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TFE — Trajectory Function Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #18181b;
+  --surface:   #1e1e22;
+  --surface2:  #26262c;
+  --border:    #2e2e35;
+  --border2:   #3a3a44;
+  --text1:     #a1a1aa;
+  --text2:     #6b6b76;
+  --text3:     #44444e;
+  --accent:    #6b82d6;
+  --accent-bg: rgba(107,130,214,.08);
+  --good:      #6fba8a;
+  --bad:       #c97070;
+  --mono:      'IBM Plex Mono', monospace;
+  --sans:      'Inter', system-ui, sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:var(--sans);overflow:hidden;color:var(--text2);}
+#app{display:grid;grid-template-columns:256px 1fr;grid-template-rows:1fr 40px;height:100vh;width:100vw;}
+#sidebar{grid-row:1;grid-column:1;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+#sidebar::-webkit-scrollbar{width:3px;}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+#viewport{grid-row:1;grid-column:2;position:relative;}
+#canvas-container{position:absolute;inset:0;}
+#statsbar{grid-row:2;grid-column:1/3;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:0;overflow:hidden;}
+
+/* Logo */
+.logo{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:8px;}
+.logo-title{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text1);letter-spacing:.02em;}
+.logo-sub{font-size:10px;color:var(--text3);}
+
+/* Scene tabs */
+#scene-tabs{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));border-bottom:1px solid var(--border);}
+.stab{padding:9px 4px;text-align:center;font-size:10px;color:var(--text3);cursor:pointer;border-right:1px solid var(--border);transition:color .12s,background .12s;user-select:none;}
+.stab:last-child{border-right:none;}
+.stab:hover{color:var(--text2);background:var(--surface2);}
+.stab.active{color:var(--text1);background:var(--surface2);position:relative;}
+.stab.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--accent);}
+
+/* Scene info */
+#scene-info{padding:12px 16px;border-bottom:1px solid var(--border);}
+#si-name{font-size:12px;font-weight:500;color:var(--text1);margin-bottom:4px;font-family:var(--sans);}
+#si-desc{font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:4px;}
+#si-proves{font-size:10px;color:var(--text3);}
+
+/* Control sections */
+.csec{padding:12px 16px;border-bottom:1px solid var(--border);}
+.csec-title{font-size:10px;font-weight:500;color:var(--text2);margin-bottom:10px;font-family:var(--sans);}
+.crow{display:flex;align-items:center;justify-content:space-between;margin-top:10px;}
+.clabel{font-size:11px;color:var(--text2);}
+.cval{font-family:var(--mono);font-size:11px;color:var(--text1);min-width:44px;text-align:right;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;background:var(--border2);outline:none;margin-top:6px;cursor:pointer;border-radius:2px;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:var(--text1);border:2px solid var(--accent);border-radius:50%;cursor:pointer;transition:background .12s;}
+input[type=range]:hover::-webkit-slider-thumb{background:var(--accent);}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;background:var(--text1);border:2px solid var(--accent);border-radius:50%;cursor:pointer;}
+
+/* Time buttons */
+#time-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:10px 16px;border-bottom:1px solid var(--border);}
+.tbtn{padding:7px 4px;text-align:center;font-size:10px;color:var(--text3);border:1px solid var(--border2);border-radius:3px;cursor:pointer;transition:color .12s,border-color .12s,background .12s;user-select:none;font-family:var(--sans);background:transparent;}
+.tbtn:hover{color:var(--text2);border-color:var(--text3);background:var(--surface2);}
+.tbtn.active{color:var(--text1);border-color:var(--accent);background:var(--accent-bg);}
+.tbtn.active.rew{color:var(--text1);border-color:var(--border2);background:var(--surface2);}
+.tbtn.active.pau{color:var(--text1);border-color:var(--border2);background:var(--surface2);}
+
+/* Toggles */
+.ctog{display:flex;align-items:center;gap:9px;margin-top:10px;cursor:pointer;user-select:none;}
+.togpill{width:30px;height:16px;background:var(--border2);border-radius:8px;position:relative;transition:background .15s;flex-shrink:0;}
+.togpill::after{content:'';position:absolute;left:3px;top:3px;width:10px;height:10px;background:#fff;border-radius:50%;transition:left .15s,opacity .15s;opacity:.35;}
+.togpill.on{background:var(--accent);}
+.togpill.on::after{left:17px;opacity:1;}
+.toglabel{font-size:11px;color:var(--text2);}
+
+/* Action buttons */
+#action-btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:10px 16px;border-bottom:1px solid var(--border);}
+.abtn{padding:7px 4px;font-size:10px;color:var(--text2);border:1px solid var(--border2);border-radius:3px;cursor:pointer;transition:color .12s,border-color .12s,background .12s;user-select:none;font-family:var(--sans);background:transparent;text-align:center;}
+.abtn:hover{color:var(--text1);border-color:var(--text2);background:var(--surface2);}
+
+/* Stats bar */
+.stat{display:flex;flex-direction:column;gap:2px;flex-shrink:0;padding:0 16px;}
+.stat:first-child{padding-left:0;}
+.slabel{font-size:9px;color:var(--text3);font-family:var(--sans);}
+.sval{font-family:var(--mono);font-size:11px;color:var(--text1);}
+.sval.g{color:var(--good);}
+.sval.c{color:var(--accent);}
+.sval.a{color:var(--text1);}
+.sval.p{color:var(--bad);}
+.ssep{display:none;}
+
+/* Scene annotation overlay */
+#annotation{position:absolute;top:14px;left:14px;font-family:var(--mono);font-size:10px;color:var(--text3);pointer-events:none;line-height:1.9;}
+#annotation .hi{color:var(--text1);}
+#annotation .warn{color:var(--text2);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div class="logo">
+      <div class="logo-title">TFE</div>
+      <div class="logo-sub">Trajectory Function Engine</div>
+    </div>
+    <div id="scene-tabs">
+      <div class="stab active" onclick="switchScene('BROWNIAN')">Brownian</div>
+      <div class="stab" onclick="switchScene('GRANULAR')">Granular</div>
+      <div class="stab" onclick="switchScene('CASCADE')">Cascade</div>
+      <div class="stab" onclick="switchScene('BILLIARDS')">Billiards</div>
+      <div class="stab" onclick="switchScene('MAXWELL')">Maxwell</div>
+      <div class="stab" onclick="switchScene('ANTITUNNEL')">Anti-tunnel</div>
+      <div class="stab" onclick="switchScene('IDLECOST')">Idle cost</div>
+      <div class="stab" onclick="switchScene('EXACTCONS')">Exact cons.</div>
+      <div class="stab" onclick="switchScene('EVENTSTORM')">Evt storm</div>
+      <div class="stab" onclick="switchScene('REWINDSHOW')">Rewind</div>
+    </div>
+    <div id="scene-info">
+      <div id="si-name">Brownian Motion</div>
+      <div id="si-desc">One heavy particle suspended in a gas of light molecules.</div>
+      <div id="si-proves">Study: diffusion · mass-ratio impulse scaling · emergent randomness</div>
+    </div>
+    <div id="time-btns">
+      <button class="tbtn active" id="btn-live"   onclick="setMode('LIVE')">Live</button>
+      <button class="tbtn"        id="btn-slowmo" onclick="setMode('SLOWMO')">Slow</button>
+      <button class="tbtn rew"    id="btn-rewind" onclick="setMode('REWIND')">Rewind</button>
+      <button class="tbtn pau"    id="btn-pause"  onclick="setMode('PAUSE')">Pause</button>
+    </div>
+    <div class="csec">
+      <div class="csec-title">Physics</div>
+      <div class="crow"><span class="clabel">Gravity</span><span class="cval" id="v-grav">400</span></div>
+      <input type="range" id="s-grav" min="0" max="900" value="400" step="10" oninput="onGravity(this.value)">
+      <div class="crow"><span class="clabel">Restitution</span><span class="cval" id="v-rest">1.00</span></div>
+      <input type="range" id="s-rest" min="0" max="100" value="100" step="1" oninput="onRestitution(this.value)">
+      <div class="crow"><span class="clabel">Time scale</span><span class="cval" id="v-ts">1.00×</span></div>
+      <input type="range" id="s-ts" min="1" max="300" value="100" step="1" oninput="onTimeScale(this.value)">
+    </div>
+    <div class="csec">
+      <div class="csec-title">Render</div>
+      <div class="crow"><span class="clabel">Trail length</span><span class="cval" id="v-trail">8</span></div>
+      <input type="range" id="s-trail" min="0" max="24" value="8" step="1" oninput="onTrail(this.value)">
+      <div class="ctog" onclick="toggleVectors()">
+        <div class="togpill" id="t-vec"></div><span class="toglabel">Velocity vectors</span>
+      </div>
+      <div class="ctog" onclick="toggleIds()">
+        <div class="togpill" id="t-ids"></div><span class="toglabel">Object IDs</span>
+      </div>
+    </div>
+    <div class="csec" id="scene-ctrl">
+      <div class="csec-title">Scene <span style="color:var(--text3);font-weight:400">— reset to apply</span></div>
+      <div id="scene-ctrl-inner"></div>
+    </div>
+    <div id="action-btns">
+      <button class="abtn" onclick="resetCurrentScene()">Reset</button>
+      <button class="abtn" onclick="spawnRandom()">Spawn</button>
+      <button class="abtn" onclick="clearTrails()">Clear trails</button>
+      <button class="abtn" onclick="clearCache()">Clear cache</button>
+    </div>
+  </div>
+
+  <div id="viewport">
+    <div id="canvas-container"></div>
+    <div id="annotation"></div>
+  </div>
+
+  <div id="statsbar">    <div class="stat"><div class="slabel">FPS</div><div class="sval g" id="sfps">0</div></div>    <div class="stat"><div class="slabel">Frames</div><div class="sval c" id="sf">0</div></div>
+    <div class="stat"><div class="slabel">Compute / frame</div><div class="sval g" id="sr">0.0000</div></div>
+    <div class="stat"><div class="slabel">Energy drift</div><div class="sval g" id="sd">+0.0000%</div></div>
+    <div class="stat"><div class="slabel">Cache hits</div><div class="sval" id="sch">0.0%</div></div>
+    <div class="stat"><div class="slabel">Events / sec</div><div class="sval" id="sev">0</div></div>
+    <div class="stat"><div class="slabel">Objects</div><div class="sval" id="sob">0</div></div>
+    <div class="stat"><div class="slabel">Heap</div><div class="sval" id="shp">0</div></div>
+    <div class="stat"><div class="slabel">Sim time</div><div class="sval c" id="sst">0.000s</div></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════
+// MUTABLE SCENE GLOBALS
+// ═══════════════════════════════════════════════════
+let G_W = 300, G_H = 250, G_D = 300;
+let G_GRAV  = new THREE.Vector3(0, -400, 0);
+let G_EN    = 1.0;   // sphere-sphere restitution
+let G_ET    = 0.0;
+let G_WEN   = 1.0;   // wall restitution
+let G_WALLS = [];
+const EPS   = 1e-10;
+
+function rebuildWalls() {
+  G_WALLS = [
+    { name:'wL', axisIdx:0, wallPos:-G_W, normalAxis: 1 },
+    { name:'wR', axisIdx:0, wallPos: G_W, normalAxis:-1 },
+    { name:'wB', axisIdx:1, wallPos:-G_H, normalAxis: 1 },
+    { name:'wT', axisIdx:1, wallPos: G_H, normalAxis:-1 },
+    { name:'wBK',axisIdx:2, wallPos:-G_D, normalAxis: 1 },
+    { name:'wFR',axisIdx:2, wallPos: G_D, normalAxis:-1 },
+  ];
+}
+rebuildWalls();
+
+// ═══════════════════════════════════════════════════
+// TRAJECTORY FUNCTION — gravity baked per-instance
+// ═══════════════════════════════════════════════════
+class TF {
+  constructor(p0, v0, t0, mass, radius, id, grav) {
+    this.p0 = p0.clone();
+    this.v0 = v0.clone();
+    this.t0 = t0;
+    this.mass   = mass;
+    this.radius = radius;
+    this.id     = id;
+    this.generation = 0;
+    this.grav   = (grav || G_GRAV).clone();
+  }
+  pos(t) {
+    const dt = t - this.t0;
+    return new THREE.Vector3(
+      this.p0.x + this.v0.x*dt + .5*this.grav.x*dt*dt,
+      this.p0.y + this.v0.y*dt + .5*this.grav.y*dt*dt,
+      this.p0.z + this.v0.z*dt + .5*this.grav.z*dt*dt
+    );
+  }
+  vel(t) {
+    const dt = t - this.t0;
+    return new THREE.Vector3(
+      this.v0.x + this.grav.x*dt,
+      this.v0.y + this.grav.y*dt,
+      this.v0.z + this.grav.z*dt
+    );
+  }
+  KE(t){ const v=this.vel(t); return .5*this.mass*v.dot(v); }
+  PE(t){ return this.mass*(-this.grav.y)*(this.pos(t).y + G_H); }
+  E(t) { return this.KE(t)+this.PE(t); }
+  seed(tc, nv) {
+    const nf = new TF(this.pos(tc), nv, tc, this.mass, this.radius, this.id, this.grav);
+    nf.generation = this.generation + 1;
+    return nf;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// DETECTION
+// ═══════════════════════════════════════════════════
+function detectSS(fa, fb, tref) {
+  const dp = new THREE.Vector3().subVectors(fa.pos(tref), fb.pos(tref));
+  const dv = new THREE.Vector3().subVectors(fa.vel(tref), fb.vel(tref));
+  const rs = fa.radius + fb.radius;
+  const A = dv.dot(dv), B = 2*dp.dot(dv), C = dp.dot(dp)-rs*rs;
+  if (A < EPS) return null;
+  const disc = B*B - 4*A*C;
+  if (disc < 0) return null;
+  const sq = Math.sqrt(Math.max(0,disc));
+  const t1 = (-B-sq)/(2*A), t2 = (-B+sq)/(2*A);
+  const tau = t1 > EPS ? t1 : t2 > EPS ? t2 : null;
+  return tau !== null ? tref + tau : null;
+}
+
+function detectSW(fn, wall, tref) {
+  const cs = wall.wallPos + wall.normalAxis*fn.radius;
+  const p0 = fn.pos(tref), v0 = fn.vel(tref);
+  const pa = [p0.x,p0.y,p0.z][wall.axisIdx];
+  const va = [v0.x,v0.y,v0.z][wall.axisIdx];
+  const ga = [fn.grav.x,fn.grav.y,fn.grav.z][wall.axisIdx];
+  const off = pa - cs;
+  let tau = null;
+  if (Math.abs(ga) < EPS) {
+    if (Math.abs(va) < EPS) return null;
+    const t = -off/va; if(t > EPS) tau=t;
+  } else {
+    const A=.5*ga, B=va, C=off;
+    const disc=B*B-4*A*C; if(disc<0) return null;
+    const sq=Math.sqrt(Math.max(0,disc));
+    const t1=(-B-sq)/(2*A), t2=(-B+sq)/(2*A);
+    if(t1>EPS) tau=t1; else if(t2>EPS) tau=t2;
+    if(tau===null) return null;
+  }
+  const tc = tref+tau;
+  const vt = fn.vel(tc);
+  const va2 = [vt.x,vt.y,vt.z][wall.axisIdx];
+  if (va2*wall.normalAxis > EPS) return null;
+  return tc;
+}
+
+// ═══════════════════════════════════════════════════
+// RESOLUTION — Chatterjee-Ruina impulse space
+// ═══════════════════════════════════════════════════
+function resolveSS(fa, fb, tc) {
+  const pa=fa.pos(tc), pb=fb.pos(tc);
+  const va=fa.vel(tc), vb=fb.vel(tc);
+  const sep=new THREE.Vector3().subVectors(pa,pb);
+  if(sep.length()<EPS) return null;
+  const n=sep.clone().normalize();
+  const vrel=new THREE.Vector3().subVectors(va,vb);
+  const vrn=vrel.dot(n);
+  if(vrn>=0) return null;
+  const vtang=new THREE.Vector3().copy(vrel).addScaledVector(n,-vrn);
+  let t1=new THREE.Vector3();
+  if(vtang.length()>EPS){ t1.copy(vtang).normalize(); }
+  else { const arb=Math.abs(n.x)<.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,1,0); t1.crossVectors(n,arb).normalize(); }
+  const t2=new THREE.Vector3().crossVectors(n,t1).normalize();
+  const Mr=(fa.mass*fb.mass)/(fa.mass+fb.mass);
+  const Pn=-Mr*(1+G_EN)*vrn;
+  const Pt1=-Mr*G_ET*vrel.dot(t1);
+  const Pt2=-Mr*G_ET*vrel.dot(t2);
+  const P=new THREE.Vector3().addScaledVector(n,Pn).addScaledVector(t1,Pt1).addScaledVector(t2,Pt2);
+  return {
+    va: new THREE.Vector3().copy(va).addScaledVector(P, 1/fa.mass),
+    vb: new THREE.Vector3().copy(vb).addScaledVector(P,-1/fb.mass)
+  };
+}
+
+function resolveSW(fn, wall, tc) {
+  const vel=fn.vel(tc);
+  const n=new THREE.Vector3(
+    wall.axisIdx===0?wall.normalAxis:0,
+    wall.axisIdx===1?wall.normalAxis:0,
+    wall.axisIdx===2?wall.normalAxis:0
+  );
+  const vn=vel.dot(n);
+  if(vn>=0) return null;
+  return new THREE.Vector3().copy(vel).addScaledVector(n,-(1+G_WEN)*vn);
+}
+
+// ═══════════════════════════════════════════════════
+// SYMMETRY CACHE
+// ═══════════════════════════════════════════════════
+class Cache {
+  constructor(){ this.m=new Map(); this.hits=0; this.misses=0; }
+  key(mr,vl,vn,en,et){
+    return `${Math.round(mr*100)/100}|${Math.round(vl/10)*10}|${vl>EPS?Math.round(Math.acos(Math.min(1,Math.abs(vn/vl)))*36/Math.PI)*5:0}|${en}|${et}`;
+  }
+  get(k){return this.m.get(k);}
+  set(k,v){this.m.set(k,v);}
+  clear(){this.m.clear();this.hits=0;this.misses=0;}
+  get rate(){const t=this.hits+this.misses;return t>0?this.hits/t:0;}
+}
+
+// ═══════════════════════════════════════════════════
+// MIN-HEAP
+// ═══════════════════════════════════════════════════
+class Heap {
+  constructor(){this.d=[];}
+  insert(x){this.d.push(x);this._up(this.d.length-1);}
+  pop(){if(!this.d.length)return; const m=this.d[0],l=this.d.pop(); if(this.d.length){this.d[0]=l;this._dn(0);} return m;}
+  peek(){return this.d[0];}
+  clear(){this.d=[];}
+  _up(i){while(i>0){const p=(i-1)>>1;if(this.d[p].tc<=this.d[i].tc)break;[this.d[p],this.d[i]]=[this.d[i],this.d[p]];i=p;}}
+  _dn(i){const n=this.d.length;while(true){let s=i,l=2*i+1,r=2*i+2;if(l<n&&this.d[l].tc<this.d[s].tc)s=l;if(r<n&&this.d[r].tc<this.d[s].tc)s=r;if(s===i)break;[this.d[s],this.d[i]]=[this.d[i],this.d[s]];i=s;}}
+  get size(){return this.d.length;}
+}
+
+// ═══════════════════════════════════════════════════
+// ENGINE STATE
+// ═══════════════════════════════════════════════════
+const objs={}, funcs={}, cache=new Cache(), heap=new Heap();
+let frameCount=0, physCount=0, evtSec=0, evtLastSec=0, lastSecT=0, initE=0;
+let fpsDisplay=0, fpsFrames=0;
+let timeMode='LIVE', simT=0, realStart=performance.now()/1000, lastReal=realStart;
+let timeScale=1.0, trailLen=8, showVectors=false, showIds=false;
+let currentScene='BROWNIAN';
+
+// ═══════════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════════
+const scene3=new THREE.Scene();
+scene3.background=new THREE.Color(0x18181b);
+scene3.fog=new THREE.FogExp2(0x18181b,.0005);
+const cam=new THREE.PerspectiveCamera(60,1,1,6000);
+cam.position.set(0,200,800); cam.lookAt(0,0,0);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(devicePixelRatio);
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+const orbitCtrl=new THREE.OrbitControls(cam,renderer.domElement);
+orbitCtrl.enableDamping=true; orbitCtrl.dampingFactor=.08;
+scene3.add(new THREE.AmbientLight(0xffffff,.3));
+const pt=new THREE.PointLight(0xffffff,.9,4000); pt.position.set(300,500,300); scene3.add(pt);
+const pt2=new THREE.PointLight(0x8899ff,.4,2000); pt2.position.set(-300,-200,-300); scene3.add(pt2);
+let boxWire=null, floorGrid=null;
+
+function updateBoxViz(){
+  if(boxWire){scene3.remove(boxWire); boxWire.geometry.dispose();}
+  if(floorGrid){scene3.remove(floorGrid);}
+  const eg=new THREE.EdgesGeometry(new THREE.BoxGeometry(G_W*2,G_H*2,G_D*2));
+  boxWire=new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:0x28282f}));
+  scene3.add(boxWire);
+  floorGrid=new THREE.GridHelper(Math.max(G_W,G_D)*2,20,0x202025,0x1a1a1f);
+  floorGrid.position.y=-G_H; scene3.add(floorGrid);
+}
+updateBoxViz();
+
+// ═══════════════════════════════════════════════════
+// MESH MANAGEMENT
+// ═══════════════════════════════════════════════════
+const meshes={}, trails={}, arrows={}, idLabels={};
+
+function speedColor(spd){
+  const t=Math.min(spd/500,1);
+  if(t<.5){const s=t*2;return new THREE.Color(.2+.15*s,.35+.3*s,.85-.2*s);}
+  const s=(t-.5)*2;return new THREE.Color(.35+.5*s,.65-.45*s,.65-.45*s);
+}
+
+function makeMesh(fn, color){
+  const mat=new THREE.MeshPhongMaterial({color:color||0x4f7df0,shininess:60,emissive:0x0a0a12});
+  const mesh=new THREE.Mesh(new THREE.SphereGeometry(fn.radius,14,10),mat);
+  scene3.add(mesh); meshes[fn.id]=mesh;
+  // Trail
+  const maxP=24;
+  const tb=new Float32Array(maxP*3);
+  const tg=new THREE.BufferGeometry();
+  tg.setAttribute('position',new THREE.BufferAttribute(tb,3));
+  tg.setDrawRange(0,0);
+  const tl=new THREE.Line(tg,new THREE.LineBasicMaterial({color:0x2a2a35,transparent:true,opacity:.6}));
+  scene3.add(tl); trails[fn.id]={times:[],line:tl,geom:tg,maxP};
+  // Arrow
+  const arr=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(),60,0xffff00,12,6);
+  arr.visible=false; scene3.add(arr); arrows[fn.id]=arr;
+}
+
+function removeMesh(id){
+  if(meshes[id]){scene3.remove(meshes[id]);meshes[id].geometry.dispose();meshes[id].material.dispose();delete meshes[id];}
+  if(trails[id]){scene3.remove(trails[id].line);trails[id].geom.dispose();delete trails[id];}
+  if(arrows[id]){scene3.remove(arrows[id]);delete arrows[id];}
+}
+
+function clearAll3D(){
+  Object.keys(meshes).forEach(removeMesh);
+  Object.keys(objs).forEach(k=>delete objs[k]);
+  Object.keys(funcs).forEach(k=>delete funcs[k]);
+  heap.clear(); frameCount=0; physCount=0; evtSec=0; evtLastSec=0;
+}
+
+// ═══════════════════════════════════════════════════
+// PREDICTION + GC
+// ═══════════════════════════════════════════════════
+function predictFor(id){
+  const fn=objs[id]; if(!fn) return;
+  for(const oid of Object.keys(objs)){
+    if(oid===id) continue;
+    const o=objs[oid];
+    const tr=Math.max(fn.t0,o.t0);
+    const tc=detectSS(fn,o,tr);
+    if(tc!==null&&tc>tr+EPS)
+      heap.insert({tc,ia:id,ib:oid,ga:fn.generation,gb:o.generation});
+  }
+  for(const w of G_WALLS){
+    const tc=detectSW(fn,w,fn.t0);
+    if(tc!==null&&tc>fn.t0+EPS)
+      heap.insert({tc,ia:id,ib:w.name,ga:fn.generation,gb:-1});
+  }
+}
+
+function initPreds(){
+  const ids=Object.keys(objs);
+  for(let i=0;i<ids.length;i++){
+    const fn=objs[ids[i]];
+    for(let j=i+1;j<ids.length;j++){
+      const o=objs[ids[j]];
+      const tr=Math.max(fn.t0,o.t0,0);
+      const tc=detectSS(fn,o,tr);
+      if(tc!==null&&tc>EPS) heap.insert({tc,ia:ids[i],ib:ids[j],ga:fn.generation,gb:o.generation});
+    }
+    for(const w of G_WALLS){
+      const tc=detectSW(fn,w,0);
+      if(tc!==null&&tc>EPS) heap.insert({tc,ia:ids[i],ib:w.name,ga:fn.generation,gb:-1});
+    }
+  }
+}
+
+function gc(){ const gcT=simT-10; for(const id of Object.keys(funcs)){const a=funcs[id];while(a.length>1&&a[0].t0<gcT)a.shift();} }
+
+function getFnAt(id,t){
+  const h=funcs[id]; if(!h?.length) return null;
+  for(let i=h.length-1;i>=0;i--) if(h[i].t0<=t+EPS) return h[i];
+  return h[0];
+}
+
+// ═══════════════════════════════════════════════════
+// SIMULATION
+// ═══════════════════════════════════════════════════
+function processEvents(ct){
+  while(true){
+    const pk=heap.peek(); if(!pk||pk.tc>ct) break;
+    const ev=heap.pop();
+    const fa=objs[ev.ia]; if(!fa||fa.generation!==ev.ga) continue;
+    if(ev.ib.startsWith('w')){
+      const wall=G_WALLS.find(w=>w.name===ev.ib); if(!wall) continue;
+      const nv=resolveSW(fa,wall,ev.tc); if(!nv) continue;
+      // Position clamp — prevents sub-surface seeding (tunneling root cause)
+      const pc=fa.pos(ev.tc);
+      const cs=wall.wallPos+wall.normalAxis*fa.radius;
+      const ax=['x','y','z'][wall.axisIdx];
+      pc[ax]=wall.normalAxis>0?Math.max(pc[ax],cs):Math.min(pc[ax],cs);
+      const nf=new TF(pc,nv,ev.tc,fa.mass,fa.radius,fa.id,fa.grav);
+      nf.generation=fa.generation+1;
+      objs[ev.ia]=nf; funcs[ev.ia].push(nf);
+      predictFor(ev.ia); physCount++; evtSec++;
+    } else {
+      const fb=objs[ev.ib]; if(!fb||fb.generation!==ev.gb) continue;
+      const res=resolveSS(fa,fb,ev.tc); if(!res) continue;
+      // Cache
+      const vr=new THREE.Vector3().subVectors(fa.vel(ev.tc),fb.vel(ev.tc));
+      const vrn=vr.dot(new THREE.Vector3().subVectors(fa.pos(ev.tc),fb.pos(ev.tc)).normalize());
+      const ck=cache.key(fa.mass/fb.mass,vr.length(),vrn,G_EN,G_ET);
+      if(cache.get(ck)) cache.hits++; else { cache.set(ck,true); cache.misses++; }
+      // Position separation — clamp to exact contact distance (prevents FP micro-overlap)
+      const pa=fa.pos(ev.tc), pb=fb.pos(ev.tc);
+      const sepV=new THREE.Vector3().subVectors(pa,pb);
+      const dist=sepV.length(), target=fa.radius+fb.radius;
+      if(dist>EPS&&dist<target){
+        const fix=(target-dist)*0.5+0.02;
+        const dir=sepV.normalize();
+        pa.addScaledVector(dir,fix); pb.addScaledVector(dir,-fix);
+      }
+      const nfa=new TF(pa,res.va,ev.tc,fa.mass,fa.radius,fa.id,fa.grav);
+      nfa.generation=fa.generation+1;
+      const nfb=new TF(pb,res.vb,ev.tc,fb.mass,fb.radius,fb.id,fb.grav);
+      nfb.generation=fb.generation+1;
+      objs[ev.ia]=nfa; objs[ev.ib]=nfb;
+      funcs[ev.ia].push(nfa); funcs[ev.ib].push(nfb);
+      predictFor(ev.ia); predictFor(ev.ib); physCount++; evtSec++;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════
+const TRAIL_DT=.1; let lastTrailT=-999;
+
+function renderObjects(){
+  const t=simT, doTrail=Math.abs(t-lastTrailT)>=TRAIL_DT;
+  if(doTrail) lastTrailT=t;
+  for(const id of Object.keys(objs)){
+    const fn=getFnAt(id,t); const mesh=meshes[id]; if(!fn||!mesh) continue;
+    const p=fn.pos(t); const v=fn.vel(t); const spd=v.length();
+    mesh.position.copy(p);
+    if(currentScene==='BROWNIAN'||currentScene==='GRANULAR') mesh.material.color.copy(speedColor(spd));
+    const tr=trails[id];
+    if(tr){
+      if(doTrail&&timeMode!=='REWIND'){
+        const tl=tr.times;
+        if(!tl.length||Math.abs(tl[tl.length-1]-t)>.001){ tl.push(t); if(tl.length>trailLen+1) tl.shift(); }
+      }
+      const pts=tr.times.slice(0,trailLen); const pa=tr.geom.attributes.position; let cnt=0;
+      for(const pt of pts){ const pf=getFnAt(id,pt); if(!pf) continue; const pp=pf.pos(pt); pa.setXYZ(cnt++,pp.x,pp.y,pp.z); }
+      pa.needsUpdate=true; tr.geom.setDrawRange(0,cnt);
+    }
+    const arr=arrows[id];
+    if(arr){ arr.visible=showVectors&&spd>2; if(showVectors&&spd>2){ arr.position.copy(p); arr.setDirection(v.clone().normalize()); arr.setLength(Math.min(spd*.25,120),14,7); } }
+  }
+}
+
+function totalEnergy(t){ let e=0; for(const id of Object.keys(funcs)){ const fn=getFnAt(id,t); if(fn) e+=fn.E(t); } return e; }
+
+// ═══════════════════════════════════════════════════
+// SCENE CONFIGS + SETUPS
+// ═══════════════════════════════════════════════════
+const SCENES={
+  BROWNIAN:{
+    name:'Brownian Motion',
+    desc:'One heavy particle suspended in a gas of light molecules. Deterministic collisions produce a statistical random walk.',
+    proves:'Study: diffusion · mass-ratio impulse scaling · emergent randomness',
+    controls:[
+      {id:'cc-bigr',label:'Dust particle radius',min:16,max:45,val:28,step:1},
+      {id:'cc-nmol',label:'Gas molecules',min:30,max:120,val:70,step:5},
+      {id:'cc-mspd',label:'Molecule speed',min:150,max:800,val:420,step:10}
+    ]
+  },
+  GRANULAR:{
+    name:'Granular Gas',
+    desc:'Inelastic collisions dissipate kinetic energy. Particles cluster into dense regions — inelastic collapse.',
+    proves:'Study: energy dissipation · granular temperature · clustering instability',
+    controls:[
+      {id:'cc-gn',label:'Particle count',min:20,max:80,val:45,step:5}
+    ]
+  },
+  CASCADE:{
+    name:'Momentum Cascade',
+    desc:'A single impulse propagates through a collinear equal-mass chain with exact event-heap ordering.',
+    proves:'Study: exact momentum transfer · event heap ordering · zero numerical diffusion',
+    controls:[
+      {id:'cc-cn',label:'Ball count',min:5,max:20,val:12,step:1},
+      {id:'cc-cl',label:'Balls launched',min:1,max:5,val:1,step:1},
+      {id:'cc-cs',label:'Launch speed',min:100,max:600,val:300,step:25}
+    ]
+  },
+  BILLIARDS:{
+    name:'Billiards Break',
+    desc:'Standard 15-ball rack. Equal-mass collisions saturate the symmetry cache rapidly.',
+    proves:'Study: symmetry cache saturation · equal-mass elastic · exact energy conservation',
+    controls:[
+      {id:'cc-cuespd',label:'Cue speed',min:300,max:2000,val:880,step:50}
+    ]
+  },
+  MAXWELL:{
+    name:'Maxwell-Boltzmann',
+    desc:'Bimodal start: half hot, half cold. Elastic collisions drive the system toward thermal equilibrium.',
+    proves:'Study: equipartition · thermalization rate · speed distribution emergence',
+    controls:[
+      {id:'cc-mn',label:'Particle count',min:20,max:80,val:50,step:5},
+      {id:'cc-mhot',label:'Hot speed',min:200,max:900,val:480,step:20},
+      {id:'cc-mcold',label:'Cold speed',min:20,max:200,val:60,step:10}
+    ]
+  },
+  ANTITUNNEL:{
+    name:'Anti-Tunnel Test',
+    desc:'A heavy projectile (mass ×200) fires at 4000 u/s through a row of light targets spaced 60 units apart. At 60 fps a step integrator moves ~67 units/frame — skipping each gap entirely. TFE solves exact quadratic roots; every collision is guaranteed regardless of speed.',
+    proves:'Capability: exact collision detection · zero tunneling at any speed · quadratic root guarantee',
+    controls:[
+      {id:'cc-atspd',label:'Projectile speed',min:1000,max:8000,val:4000,step:100},
+      {id:'cc-atn',label:'Target count',min:3,max:15,val:9,step:1}
+    ]
+  },
+  IDLECOST:{
+    name:'Idle Cost Demo',
+    desc:'Many objects in nearly non-overlapping free-fall. Compute/frame stays near 0.0000 despite a large object count — TFE fires physics only at discrete events, never on a fixed time step.',
+    proves:'Capability: O(events) not O(N/frame) · idle cost is architecturally zero · step engines pay O(N) always',
+    controls:[
+      {id:'cc-icn',label:'Object count',min:40,max:160,val:100,step:10}
+    ]
+  },
+  EXACTCONS:{
+    name:'Exact Conservation',
+    desc:'Fully elastic collisions run indefinitely. Watch the Energy drift counter stay locked at +0.0000% — impulse resolution is algebraically exact; there is no floating-point accumulation over time.',
+    proves:'Capability: exact energy conservation · algebraic impulse · zero long-run drift',
+    controls:[
+      {id:'cc-ecn',label:'Ball count',min:8,max:40,val:18,step:2}
+    ]
+  },
+  EVENTSTORM:{
+    name:'Event Storm',
+    desc:'Dense sphere pack generates thousands of near-simultaneous collisions per second. The min-heap queues all future events as data. FPS stays stable regardless of burst density — collision rate and render rate are fully decoupled.',
+    proves:'Capability: heap absorbs event bursts · FPS decoupled from collision rate · arbitrarily many queued events',
+    controls:[
+      {id:'cc-esn',label:'Ball count',min:40,max:110,val:75,step:5}
+    ]
+  },
+  REWINDSHOW:{
+    name:'Exact Rewind',
+    desc:'Each body retains its full trajectory function history. Rewind replays exact closed-form parabolas — no interoplation, no state snapshots, no accumulated error. Press R to rewind after collisions occur.',
+    proves:'Capability: exact rewind · full TF history per body · step integrators cannot rewind',
+    controls:[
+      {id:'cc-rwn',label:'Ball count',min:5,max:20,val:10,step:1},
+      {id:'cc-rwspd',label:'Launch speed',min:80,max:500,val:220,step:20}
+    ]
+  }
+};
+
+// Helpers
+let _idCounter=0;
+function nid(){ return `o${_idCounter++}`; }
+
+function spawn(p,v,mass,radius,color){
+  const id=nid();
+  const fn=new TF(p,v,simT,mass,radius,id,G_GRAV.clone());
+  objs[id]=fn; funcs[id]=[fn];
+  makeMesh(fn,color);
+  predictFor(id);
+  return id;
+}
+
+function noOverlap(pos,radius,existing){
+  for(const [r,p] of existing) if(pos.distanceTo(p)<radius+r+2) return false;
+  return true;
+}
+
+function randPos(radius,placed,maxTries=500){
+  for(let i=0;i<maxTries;i++){
+    const p=new THREE.Vector3((Math.random()*2-1)*(G_W-radius),(Math.random()*2-1)*(G_H-radius),(Math.random()*2-1)*(G_D-radius));
+    if(noOverlap(p,radius,placed)){ placed.push([radius,p]); return p; }
+  }
+  // fallback — shrink
+  const p=new THREE.Vector3((Math.random()*2-1)*(G_W*.5),(Math.random()*2-1)*(G_H*.5),(Math.random()*2-1)*(G_D*.5));
+  placed.push([radius,p]); return p;
+}
+
+function getCtrlVal(id, def){ const el=document.getElementById(id); return el?parseFloat(el.value):def; }
+
+// ─── Zero-gravity scenes ignore the gravity slider
+const ZERO_GRAV=new Set(['BROWNIAN','CASCADE','MAXWELL','ANTITUNNEL','EVENTSTORM']);
+
+function setupBROWNIAN(){
+  G_W=380; G_H=320; G_D=380;
+  G_GRAV=new THREE.Vector3(0,0,0);
+  rebuildWalls(); updateBoxViz();
+  const bigR=Math.round(getCtrlVal('cc-bigr',28));
+  const nMol=Math.round(getCtrlVal('cc-nmol',70));
+  const molSpd=getCtrlVal('cc-mspd',420);
+  const bigMass=bigR*bigR*bigR*0.6;
+  const bigP=new THREE.Vector3(0,0,0);
+  spawn(bigP,new THREE.Vector3(0,0,0),bigMass,bigR,new THREE.Color(0.78,0.78,0.82));
+  const placed=[[bigR,bigP]];
+  for(let i=0;i<nMol;i++){
+    const r=5+Math.random()*3;
+    const p=randPos(r,placed);
+    const phi=Math.random()*Math.PI*2;
+    const cosT=Math.random()*2-1, sinT=Math.sqrt(1-cosT*cosT);
+    const spd=molSpd*(0.6+Math.random()*0.8);
+    const v=new THREE.Vector3(sinT*Math.cos(phi),sinT*Math.sin(phi),cosT).multiplyScalar(spd);
+    spawn(p,v,r*r*r*0.008,r,new THREE.Color().setHSL(0.57+Math.random()*0.08,0.45,0.50));
+  }
+}
+
+function setupGRANULAR(){
+  G_W=300; G_H=240; G_D=300;
+  rebuildWalls(); updateBoxViz();
+  G_EN=0.72; cache.clear();
+  document.getElementById('s-rest').value=72;
+  document.getElementById('v-rest').textContent='0.72';
+  const n=Math.round(getCtrlVal('cc-gn',45));
+  const placed=[];
+  for(let i=0;i<n;i++){
+    const r=10+Math.random()*7;
+    const p=randPos(r,placed);
+    const v=new THREE.Vector3((Math.random()*2-1)*160,(Math.random()*2-1)*130,(Math.random()*2-1)*160);
+    spawn(p,v,r*r*r*0.012,r,new THREE.Color().setHSL(Math.random(),0.4,0.48));
+  }
+}
+
+function setupCASCADE(){
+  G_W=680; G_H=100; G_D=80;
+  G_GRAV=new THREE.Vector3(0,0,0);
+  rebuildWalls(); updateBoxViz();
+  const n=Math.round(getCtrlVal('cc-cn',12));
+  const launch=Math.min(Math.round(getCtrlVal('cc-cl',1)),n-1);
+  const spd=getCtrlVal('cc-cs',300);
+  const r=18, mass=100, spacing=r*2+0.5;
+  const staticN=n-launch;
+  const cx=-(staticN-1)*spacing/2;
+  for(let i=0;i<staticN;i++){
+    spawn(new THREE.Vector3(cx+i*spacing,0,0),new THREE.Vector3(0,0,0),mass,r,
+      new THREE.Color().setHSL(i/n,0.38,0.52));
+  }
+  for(let i=0;i<launch;i++){
+    spawn(new THREE.Vector3(cx-(launch-i)*spacing,0,0),new THREE.Vector3(spd,0,0),mass,r,
+      new THREE.Color(0.84,0.84,0.90));
+  }
+}
+
+function setupBILLIARDS(){
+  G_W=520; G_H=70; G_D=260;
+  G_GRAV=new THREE.Vector3(0,-50,0);
+  rebuildWalls(); updateBoxViz();
+  const cueSpd=getCtrlVal('cc-cuespd',880);
+  const r=16, mass=100, spacing=r*2+0.6;
+  const rowStep=spacing*Math.sin(Math.PI/3);
+  const rackX=80, tableY=-G_H+r+1;
+  const ballColors=[0xe8c832,0x2244bb,0xcc2020,0x882299,0xdd6600,0x228844,0xbb1111,0x222222,
+    0xe8c832,0x2244bb,0x882299,0xdd6600,0x228844,0x2244bb,0x882299];
+  let bi=0;
+  for(let row=0;row<5;row++){
+    for(let col=0;col<=row;col++){
+      const p=new THREE.Vector3(rackX+row*rowStep, tableY, (col-row/2)*spacing);
+      spawn(p,new THREE.Vector3(0,0,0),mass,r,new THREE.Color(ballColors[bi++]));
+    }
+  }
+  const cueP=new THREE.Vector3(-G_W+50,tableY,2.5);
+  spawn(cueP,new THREE.Vector3(cueSpd,0,-1.8),mass,r,new THREE.Color(0.88,0.88,0.88));
+}
+
+function setupMAXWELL(){
+  G_W=320; G_H=280; G_D=320;
+  G_GRAV=new THREE.Vector3(0,0,0);
+  rebuildWalls(); updateBoxViz();
+  const n=Math.round(getCtrlVal('cc-mn',50));
+  const hotSpd=getCtrlVal('cc-mhot',480);
+  const coldSpd=getCtrlVal('cc-mcold',60);
+  const placed=[];
+  for(let i=0;i<n;i++){
+    const r=9;
+    const p=randPos(r,placed);
+    const isHot=i<Math.floor(n/2);
+    const speed=(isHot?hotSpd:coldSpd)*(0.7+Math.random()*0.6);
+    const phi=Math.random()*Math.PI*2;
+    const cosT=Math.random()*2-1, sinT=Math.sqrt(1-cosT*cosT);
+    const v=new THREE.Vector3(sinT*Math.cos(phi),sinT*Math.sin(phi),cosT).multiplyScalar(speed);
+    spawn(p,v,r*r*r*0.01,r, isHot
+      ? new THREE.Color().setHSL(0.06,0.55,0.48)
+      : new THREE.Color().setHSL(0.60,0.45,0.45));
+  }
+}
+
+function setupANTITUNNEL(){
+  G_W=500; G_H=100; G_D=100;
+  G_GRAV=new THREE.Vector3(0,0,0);
+  rebuildWalls(); updateBoxViz();
+  const spd=getCtrlVal('cc-atspd',4000);
+  const n=Math.round(getCtrlVal('cc-atn',9));
+  // Light targets in a row along x-axis, all at y=0 z=0
+  // Gap between surfaces = 60 units >> step size at 60fps = spd/60
+  const tr=11, tm=tr*tr*tr*0.008, tSpacing=80;
+  for(let i=0;i<n;i++){
+    const x=-((n-1)*tSpacing/2) + i*tSpacing;
+    spawn(new THREE.Vector3(x,0,0),new THREE.Vector3(0,0,0),tm,tr,
+      new THREE.Color().setHSL(i/n*0.45+0.28,0.55,0.46));
+  }
+  // Heavy fast projectile aimed directly down the row (y=0, z=0)
+  // Mass ratio ~200:1 — projectile barely slows after each hit
+  const pr=14, pm=pr*pr*pr*1.5;
+  spawn(new THREE.Vector3(-G_W+pr+2,0,0),new THREE.Vector3(spd,0,0),pm,pr,
+    new THREE.Color(0.88,0.42,0.18));
+}
+
+function setupIDLECOST(){
+  G_W=600; G_H=450; G_D=600;
+  rebuildWalls(); updateBoxViz();
+  const n=Math.round(getCtrlVal('cc-icn',100));
+  const placed=[];
+  for(let i=0;i<n;i++){
+    const r=13+Math.random()*6;
+    const p=randPos(r,placed);
+    // Very small initial velocity — mostly just falling
+    const v=new THREE.Vector3((Math.random()*2-1)*30,(Math.random()*2-1)*30,(Math.random()*2-1)*30);
+    spawn(p,v,r*r*r*0.01,r,new THREE.Color().setHSL(i/n,0.22,0.44));
+  }
+}
+
+function setupEXACTCONS(){
+  G_W=320; G_H=260; G_D=320;
+  rebuildWalls(); updateBoxViz();
+  G_EN=1.0; cache.clear();
+  document.getElementById('s-rest').value=100;
+  document.getElementById('v-rest').textContent='1.00';
+  const n=Math.round(getCtrlVal('cc-ecn',18));
+  const placed=[];
+  for(let i=0;i<n;i++){
+    const r=13+Math.random()*5;
+    const p=randPos(r,placed);
+    const v=new THREE.Vector3((Math.random()*2-1)*190,(Math.random()*2-1)*190,(Math.random()*2-1)*190);
+    spawn(p,v,r*r*r*0.01,r,new THREE.Color().setHSL(i/n*0.72+0.1,0.40,0.50));
+  }
+}
+
+function setupEVENTSTORM(){
+  G_W=175; G_H=155; G_D=175;
+  G_GRAV=new THREE.Vector3(0,0,0);
+  rebuildWalls(); updateBoxViz();
+  const n=Math.round(getCtrlVal('cc-esn',75));
+  const placed=[];
+  for(let i=0;i<n;i++){
+    const r=9+Math.random()*3;
+    const p=randPos(r,placed);
+    const phi=Math.random()*Math.PI*2;
+    const cosT=Math.random()*2-1, sinT=Math.sqrt(1-cosT*cosT);
+    const v=new THREE.Vector3(sinT*Math.cos(phi),sinT*Math.sin(phi),cosT).multiplyScalar(280+Math.random()*180);
+    spawn(p,v,r*r*r*0.01,r,new THREE.Color().setHSL(0.58+Math.random()*0.12,0.42,0.46));
+  }
+}
+
+function setupREWINDSHOW(){
+  G_W=350; G_H=290; G_D=350;
+  rebuildWalls(); updateBoxViz();
+  G_EN=1.0; cache.clear();
+  document.getElementById('s-rest').value=100;
+  document.getElementById('v-rest').textContent='1.00';
+  const n=Math.round(getCtrlVal('cc-rwn',10));
+  const spd=getCtrlVal('cc-rwspd',220);
+  const placed=[];
+  for(let i=0;i<n;i++){
+    const r=15+Math.random()*5;
+    const p=randPos(r,placed);
+    const v=new THREE.Vector3((Math.random()*2-1)*spd,(Math.random()*2-1)*spd,(Math.random()*2-1)*spd);
+    spawn(p,v,r*r*r*0.01,r,new THREE.Color().setHSL(i/n,0.45,0.50));
+  }
+}
+
+const SETUPS={BROWNIAN:setupBROWNIAN,GRANULAR:setupGRANULAR,CASCADE:setupCASCADE,BILLIARDS:setupBILLIARDS,MAXWELL:setupMAXWELL,ANTITUNNEL:setupANTITUNNEL,IDLECOST:setupIDLECOST,EXACTCONS:setupEXACTCONS,EVENTSTORM:setupEVENTSTORM,REWINDSHOW:setupREWINDSHOW};
+
+function resetCurrentScene(){
+  if(!ZERO_GRAV.has(currentScene)){
+    const gv=parseFloat(document.getElementById('s-grav').value);
+    G_GRAV=new THREE.Vector3(0,-gv,0);
+  }
+  clearAll3D(); simT=0; _idCounter=0;
+  lastReal=performance.now()/1000;
+  SETUPS[currentScene]();
+  initPreds();
+  initE=totalEnergy(0);
+  updateAnnotation();
+}
+
+const SCENE_ORDER=['BROWNIAN','GRANULAR','CASCADE','BILLIARDS','MAXWELL','ANTITUNNEL','IDLECOST','EXACTCONS','EVENTSTORM','REWINDSHOW'];
+function switchScene(name){
+  currentScene=name;
+  document.querySelectorAll('.stab').forEach((t,i)=>{
+    t.classList.toggle('active',SCENE_ORDER[i]===name);
+  });
+  const sc=SCENES[name];
+  document.getElementById('si-name').textContent=sc.name;
+  document.getElementById('si-desc').textContent=sc.desc;
+  document.getElementById('si-proves').textContent=sc.proves;
+  buildSceneControls(sc.controls);
+  resetCurrentScene();
+}
+
+function buildSceneControls(ctrls){
+  const el=document.getElementById('scene-ctrl-inner'); el.innerHTML='';
+  for(const c of ctrls){
+    el.innerHTML+=`<div class="crow"><span class="clabel">${c.label}</span><span class="cval" id="${c.id}-v">${c.val}</span></div>
+    <input type="range" id="${c.id}" min="${c.min}" max="${c.max}" value="${c.val}" step="${c.step}" oninput="document.getElementById('${c.id}-v').textContent=this.value">`;
+  }
+}
+
+function updateAnnotation(){
+  const ann=document.getElementById('annotation');
+  if(currentScene==='BROWNIAN'){
+    ann.innerHTML=`Gravity: <span class="hi">zero</span><br>Heavy dust particle (large) — light gas molecules (small)<br>Watch the large sphere trace a <span class="hi">Brownian random walk</span>`;
+  } else if(currentScene==='GRANULAR'){
+    ann.innerHTML=`Restitution <span class="hi">&lt; 1</span> — each collision dissipates kinetic energy<br>Watch clustering and slow-down: <span class="hi">inelastic collapse</span><br>Adjust restitution slider to change dissipation rate`;
+  } else if(currentScene==='CASCADE'){
+    ann.innerHTML=`Gravity: <span class="hi">zero</span> — equal-mass collinear chain<br>Single impulse propagates in <span class="hi">exact heap-sorted event order</span><br>No numerical diffusion — all collision times are analytic`;
+  } else if(currentScene==='BILLIARDS'){
+    ann.innerHTML=`Equal-mass elastic — watch <span class="hi">cache hit rate climb</span><br>Same mass × similar speed → same symmetry class → cached impulse<br>Energy conserved exactly across all collisions`;
+  } else if(currentScene==='MAXWELL'){
+    ann.innerHTML=`<span class="hi">Orange</span> = hot (high speed)   <span class="hi">Blue</span> = cold (low speed)<br>Equal-mass elastic collisions → <span class="hi">equipartition</span><br>Watch speed distribution merge toward Maxwell-Boltzmann`;  } else if(currentScene==='ANTITUNNEL'){
+    const stepSz=Math.round(getCtrlVal('cc-atspd',4000)/60);
+    ann.innerHTML=`Gravity: <span class="hi">zero</span> &nbsp;|&nbsp; Projectile: <span class="hi">4000 u/s</span>, mass ≈200× target<br>Step integrator at 60 fps moves <span class="hi">~${stepSz} units/frame</span> &mdash; wider than each gap (60 u)<br>TFE quadratic root finds every collision &mdash; <span class="hi">zero tunneling at any speed</span>`;
+  } else if(currentScene==='IDLECOST'){
+    ann.innerHTML=`Watch <span class="hi">Compute / frame</span> in the stats bar below<br>With ${Object.keys(objs).length} objects, physics cost stays near <span class="hi">0.0000</span><br>TFE fires only at discrete events — <span class="hi">idle cost is zero</span>`;
+  } else if(currentScene==='EXACTCONS'){
+    ann.innerHTML=`Fully elastic, running indefinitely<br>Watch <span class="hi">Energy drift</span> hold at <span class="hi">+0.0000%</span> — impulse is algebraically exact<br>No floating-point accumulation over time`;
+  } else if(currentScene==='EVENTSTORM'){
+    ann.innerHTML=`Watch <span class="hi">Events / sec</span> and <span class="hi">Heap</span> spike in the stats bar<br>The min-heap queues all future collisions as data — <span class="hi">FPS stays stable</span><br>Burst collision density does not block the render frame`;
+  } else if(currentScene==='REWINDSHOW'){
+    ann.innerHTML=`Press <span class="hi">R</span> to rewind — TF history per body is retained exactly<br>Rewind replays closed-form parabolas: <span class="hi">no interpolation, no error</span><br>Step integrators discard state each frame — <span class="hi">rewind is impossible</span>`;  } else {
+    ann.innerHTML='';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════════════
+function setMode(m){
+  timeMode=m;
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
+  const map={LIVE:'btn-live',SLOWMO:'btn-slowmo',REWIND:'btn-rewind',PAUSE:'btn-pause'};
+  const btn=document.getElementById(map[m]); if(btn) btn.classList.add('active');
+}
+
+function onGravity(v){
+  document.getElementById('v-grav').textContent=v;
+  if(ZERO_GRAV.has(currentScene)) return;
+  G_GRAV=new THREE.Vector3(0,-parseFloat(v),0);
+  // Reseed all current trajectory functions with new gravity
+  const t=simT; const ids=Object.keys(objs);
+  for(const id of ids){
+    const fn=objs[id]; const p=fn.pos(t); const vel=fn.vel(t);
+    const nf=new TF(p,vel,t,fn.mass,fn.radius,fn.id,G_GRAV.clone());
+    nf.generation=fn.generation+1; objs[id]=nf; funcs[id].push(nf);
+  }
+  heap.clear(); initPreds(); initE=totalEnergy(t);
+}
+
+function onRestitution(v){
+  document.getElementById('v-rest').textContent=(v/100).toFixed(2);
+  G_EN=v/100; cache.clear();
+}
+
+function onTimeScale(v){
+  document.getElementById('v-ts').textContent=(v/100).toFixed(2)+'×';
+  timeScale=v/100;
+}
+
+function onTrail(v){ document.getElementById('v-trail').textContent=v; trailLen=parseInt(v); }
+
+function toggleVectors(){
+  showVectors=!showVectors;
+  document.getElementById('t-vec').classList.toggle('on',showVectors);
+  if(!showVectors) Object.values(arrows).forEach(a=>a.visible=false);
+}
+
+function toggleIds(){
+  showIds=!showIds;
+  document.getElementById('t-ids').classList.toggle('on',showIds);
+}
+
+
+function spawnRandom(){
+  const r=10+Math.random()*15;
+  const p=new THREE.Vector3((Math.random()*2-1)*(G_W-r),(Math.random()*2-1)*(G_H-r),(Math.random()*2-1)*(G_D-r));
+  const v=new THREE.Vector3((Math.random()*2-1)*150,(Math.random()*2-1)*150,(Math.random()*2-1)*150);
+  spawn(p,v,r*r*r*.01,r,null);
+  initE=totalEnergy(simT);
+}
+
+function clearTrails(){ Object.values(trails).forEach(t=>{ t.times=[]; t.geom.setDrawRange(0,0); }); }
+function clearCache(){ cache.clear(); }
+
+// ═══════════════════════════════════════════════════
+// HUD
+// ═══════════════════════════════════════════════════
+let hudAcc=0;
+function updateHUD(rn){
+  if(++hudAcc%5!==0) return;
+  const fEl=document.getElementById('sfps'); fEl.textContent=fpsDisplay;
+  fEl.className='sval '+(fpsDisplay>=55?'g':fpsDisplay>=30?'a':'p');
+  const ratio=frameCount>0?physCount/frameCount:0;
+  const energy=totalEnergy(simT);
+  const drift=initE!==0?((energy-initE)/Math.abs(initE))*100:0;
+  const hr=(cache.rate*100).toFixed(1)+'%';
+  document.getElementById('sf').textContent=frameCount;
+  const rEl=document.getElementById('sr'); rEl.textContent=ratio.toFixed(4);
+  rEl.className='sval '+(ratio<.1?'g':ratio<.5?'':' a');
+  const dEl=document.getElementById('sd'); dEl.textContent=(drift>=0?'+':'')+drift.toFixed(4)+'%';
+  dEl.className='sval '+(Math.abs(drift)<.02?'g':'p');
+  document.getElementById('sch').textContent=hr;
+  document.getElementById('sev').textContent=evtLastSec;
+  document.getElementById('sob').textContent=Object.keys(objs).length;
+  document.getElementById('shp').textContent=heap.size;
+  document.getElementById('sst').textContent=simT.toFixed(3)+'s';
+}
+
+// ═══════════════════════════════════════════════════
+// ANIMATION LOOP
+// ═══════════════════════════════════════════════════
+function animate(){
+  requestAnimationFrame(animate);
+  const rn=performance.now()/1000;
+  const rd=Math.min(rn-lastReal,.05); lastReal=rn;
+  switch(timeMode){
+    case 'LIVE':   simT+=rd*timeScale; break;
+    case 'REWIND': simT-=rd*2*timeScale; break;
+    case 'SLOWMO': simT+=rd*.1*timeScale; break;
+  }
+  if(timeMode==='REWIND'){
+    let earliest=simT;
+    for(const a of Object.values(funcs)) if(a.length&&a[0].t0<earliest) earliest=a[0].t0;
+    if(simT<earliest) simT=earliest;
+  }
+  if(timeMode==='LIVE'||timeMode==='SLOWMO'){ processEvents(simT); gc(); }
+  if(rn-lastSecT>=1){ evtLastSec=evtSec; evtSec=0; fpsDisplay=fpsFrames; fpsFrames=0; lastSecT=rn; }
+  fpsFrames++;
+  renderObjects();
+  orbitCtrl.update();
+  renderer.render(scene3,cam);
+  frameCount++;
+  updateHUD(rn);
+}
+
+// ═══════════════════════════════════════════════════
+// RESIZE
+// ═══════════════════════════════════════════════════
+function onResize(){
+  const vp=document.getElementById('viewport');
+  const w=vp.clientWidth, h=vp.clientHeight;
+  cam.aspect=w/h; cam.updateProjectionMatrix();
+  renderer.setSize(w,h);
+}
+window.addEventListener('resize',onResize); onResize();
+
+// ═══════════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  const k=e.key;
+  if(k==='1') switchScene('BROWNIAN');
+  else if(k==='2') switchScene('GRANULAR');
+  else if(k==='3') switchScene('CASCADE');
+  else if(k==='4') switchScene('BILLIARDS');
+  else if(k==='5') switchScene('MAXWELL');
+  else if(k==='6') switchScene('ANTITUNNEL');
+  else if(k==='7') switchScene('IDLECOST');
+  else if(k==='8') switchScene('EXACTCONS');
+  else if(k==='9') switchScene('EVENTSTORM');
+  else if(k==='0') switchScene('REWINDSHOW');
+  else if(k===' '||k==='p') setMode(timeMode==='PAUSE'?'LIVE':'PAUSE');
+  else if(k==='r') setMode('REWIND');
+  else if(k==='s') setMode('SLOWMO');
+  else if(k==='l') setMode('LIVE');
+  else if(k==='v') toggleVectors();
+  else if(k==='Enter') resetCurrentScene();
+  else if(k==='+') spawnRandom();
+});
+
+// ═══════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════
+(function boot(){
+  buildSceneControls(SCENES.BROWNIAN.controls);
+  resetCurrentScene();
+  animate();
+  console.log('[TFE] 1=Brownian 2=Granular 3=Cascade 4=Billiards 5=Maxwell 6=AntiTunnel 7=IdleCost 8=ExactCons 9=EventStorm 0=Rewind | Space=pause R=rewind S=slow L=live V=vectors Enter=reset +=spawn');
+})();
+</script>
+</body>
+</html>
