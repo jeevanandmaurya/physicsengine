@@ -29,7 +29,7 @@ body{background:var(--bg);font-family:var(--sans);overflow:hidden;color:var(--te
 #sidebar::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 #viewport{grid-row:1;grid-column:2;position:relative;}
 #canvas-container{position:absolute;inset:0;}
-#statsbar{grid-row:2;grid-column:1/3;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:0;overflow:hidden;}
+#statsbar{grid-row:2;grid-column:1/3;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:0;overflow:hidden;height:44px;}
 
 /* Logo */
 .logo{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:8px;}
@@ -61,25 +61,25 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 input[type=range]:hover::-webkit-slider-thumb{background:var(--accent);}
 input[type=range]::-moz-range-thumb{width:13px;height:13px;background:var(--text1);border:2px solid var(--accent);border-radius:50%;cursor:pointer;}
 
-/* Time buttons */
-#time-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:10px 16px;border-bottom:1px solid var(--border);}
-.tbtn{padding:7px 4px;text-align:center;font-size:10px;color:var(--text3);border:1px solid var(--border2);border-radius:3px;cursor:pointer;transition:color .12s,border-color .12s,background .12s;user-select:none;font-family:var(--sans);background:transparent;}
+/* Time buttons — inline in bar */
+#time-btns{display:flex;gap:3px;align-items:center;margin:0;padding:0;}
+.tbtn{padding:5px 10px;text-align:center;font-size:10px;color:var(--text3);border:1px solid var(--border2);border-radius:3px;cursor:pointer;transition:color .12s,border-color .12s,background .12s;user-select:none;font-family:var(--sans);background:transparent;white-space:nowrap;}
 .tbtn:hover{color:var(--text2);border-color:var(--text3);background:var(--surface2);}
 .tbtn.active{color:var(--text1);border-color:var(--accent);background:var(--accent-bg);}
 .tbtn.active.rew{color:var(--text1);border-color:var(--border2);background:var(--surface2);}
 .tbtn.active.pau{color:var(--text1);border-color:var(--border2);background:var(--surface2);}
 
-/* Toggles */
-.ctog{display:flex;align-items:center;gap:9px;margin-top:10px;cursor:pointer;user-select:none;}
-.togpill{width:30px;height:16px;background:var(--border2);border-radius:8px;position:relative;transition:background .15s;flex-shrink:0;}
-.togpill::after{content:'';position:absolute;left:3px;top:3px;width:10px;height:10px;background:#fff;border-radius:50%;transition:left .15s,opacity .15s;opacity:.35;}
+/* Toggles — inline in bar */
+.ctog{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;}
+.togpill{width:26px;height:14px;background:var(--border2);border-radius:7px;position:relative;transition:background .15s;flex-shrink:0;}
+.togpill::after{content:'';position:absolute;left:2px;top:2px;width:10px;height:10px;background:#fff;border-radius:50%;transition:left .15s,opacity .15s;opacity:.35;}
 .togpill.on{background:var(--accent);}
-.togpill.on::after{left:17px;opacity:1;}
-.toglabel{font-size:11px;color:var(--text2);}
+.togpill.on::after{left:14px;opacity:1;}
+.toglabel{font-size:10px;color:var(--text2);white-space:nowrap;}
 
-/* Action buttons */
-#action-btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:10px 16px;border-bottom:1px solid var(--border);}
-.abtn{padding:7px 4px;font-size:10px;color:var(--text2);border:1px solid var(--border2);border-radius:3px;cursor:pointer;transition:color .12s,border-color .12s,background .12s;user-select:none;font-family:var(--sans);background:transparent;text-align:center;}
+/* Action buttons — inline in bar */
+#action-btns{display:flex;gap:3px;align-items:center;margin:0;padding:0;}
+.abtn{padding:5px 10px;font-size:10px;color:var(--text2);border:1px solid var(--border2);border-radius:3px;cursor:pointer;transition:color .12s,border-color .12s,background .12s;user-select:none;font-family:var(--sans);background:transparent;text-align:center;white-space:nowrap;}
 .abtn:hover{color:var(--text1);border-color:var(--text2);background:var(--surface2);}
 
 /* Stats bar */
@@ -92,11 +92,23 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;background:var(--text
 .sval.a{color:var(--text1);}
 .sval.p{color:var(--bad);}
 .ssep{display:none;}
+.bar-sep{width:1px;height:24px;background:var(--border);margin:0 12px;flex-shrink:0;}
+.bar-group{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 
 /* Scene annotation overlay */
 #annotation{position:absolute;top:14px;left:14px;font-family:var(--mono);font-size:10px;color:var(--text3);pointer-events:none;line-height:1.9;}
 #annotation .hi{color:var(--text1);}
 #annotation .warn{color:var(--text2);}
+
+/* Velocity tracker overlay */
+#vel-tracker{position:absolute;bottom:14px;right:14px;font-family:var(--mono);font-size:10px;color:var(--text3);pointer-events:none;text-align:right;line-height:1.8;}
+#vel-tracker .vt-speed{color:#e8c832;font-size:13px;font-weight:500;}
+#vel-tracker .vt-id{color:#e8c832;}
+#vel-tracker .vt-label{color:var(--text3);}
+#vel-tracker .vt-step{color:var(--bad);}
+#vel-tracker .vt-tfe{color:var(--good);}
+#vel-tracker .vt-limit{color:var(--text2);}
+#vel-tracker .vt-warn{color:var(--bad);font-weight:500;}
 </style>
 </head>
 <body>
@@ -117,17 +129,14 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;background:var(--text
       <div class="stab" onclick="switchScene('EXACTCONS')">Exact cons.</div>
       <div class="stab" onclick="switchScene('EVENTSTORM')">Evt storm</div>
       <div class="stab" onclick="switchScene('REWINDSHOW')">Rewind</div>
+      <div class="stab" onclick="switchScene('STACKING')">Stacking</div>
+      <div class="stab" onclick="switchScene('SYMMETRIC')">Symmetric</div>
+      <div class="stab" onclick="switchScene('INELASTIC')">Inelastic</div>
     </div>
     <div id="scene-info">
       <div id="si-name">Brownian Motion</div>
       <div id="si-desc">One heavy particle suspended in a gas of light molecules.</div>
       <div id="si-proves">Study: diffusion · mass-ratio impulse scaling · emergent randomness</div>
-    </div>
-    <div id="time-btns">
-      <button class="tbtn active" id="btn-live"   onclick="setMode('LIVE')">Live</button>
-      <button class="tbtn"        id="btn-slowmo" onclick="setMode('SLOWMO')">Slow</button>
-      <button class="tbtn rew"    id="btn-rewind" onclick="setMode('REWIND')">Rewind</button>
-      <button class="tbtn pau"    id="btn-pause"  onclick="setMode('PAUSE')">Pause</button>
     </div>
     <div class="csec">
       <div class="csec-title">Physics</div>
@@ -138,41 +147,51 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;background:var(--text
       <div class="crow"><span class="clabel">Time scale</span><span class="cval" id="v-ts">1.00×</span></div>
       <input type="range" id="s-ts" min="1" max="300" value="100" step="1" oninput="onTimeScale(this.value)">
     </div>
-    <div class="csec">
-      <div class="csec-title">Render</div>
-      <div class="crow"><span class="clabel">Trail length</span><span class="cval" id="v-trail">8</span></div>
-      <input type="range" id="s-trail" min="0" max="24" value="8" step="1" oninput="onTrail(this.value)">
-      <div class="ctog" onclick="toggleVectors()">
-        <div class="togpill" id="t-vec"></div><span class="toglabel">Velocity vectors</span>
-      </div>
-      <div class="ctog" onclick="toggleIds()">
-        <div class="togpill" id="t-ids"></div><span class="toglabel">Object IDs</span>
-      </div>
-    </div>
     <div class="csec" id="scene-ctrl">
       <div class="csec-title">Scene <span style="color:var(--text3);font-weight:400">— reset to apply</span></div>
       <div id="scene-ctrl-inner"></div>
-    </div>
-    <div id="action-btns">
-      <button class="abtn" onclick="resetCurrentScene()">Reset</button>
-      <button class="abtn" onclick="spawnRandom()">Spawn</button>
-      <button class="abtn" onclick="clearTrails()">Clear trails</button>
-      <button class="abtn" onclick="clearCache()">Clear cache</button>
     </div>
   </div>
 
   <div id="viewport">
     <div id="canvas-container"></div>
     <div id="annotation"></div>
+    <div id="vel-tracker"></div>
   </div>
 
-  <div id="statsbar">    <div class="stat"><div class="slabel">FPS</div><div class="sval g" id="sfps">0</div></div>    <div class="stat"><div class="slabel">Frames</div><div class="sval c" id="sf">0</div></div>
+  <div id="statsbar">
+    <div class="bar-group" id="time-btns">
+      <button class="tbtn active" id="btn-live"   onclick="setMode('LIVE')">Live</button>
+      <button class="tbtn"        id="btn-slowmo" onclick="setMode('SLOWMO')">Slow</button>
+      <button class="tbtn rew"    id="btn-rewind" onclick="setMode('REWIND')">Rewind</button>
+      <button class="tbtn pau"    id="btn-pause"  onclick="setMode('PAUSE')">Pause</button>
+    </div>
+    <div class="bar-sep"></div>
+    <div class="bar-group" id="action-btns">
+      <button class="abtn" onclick="resetCurrentScene()">Reset</button>
+      <button class="abtn" onclick="spawnRandom()">+Spawn</button>
+      <button class="abtn" onclick="clearTrails()">Clr trails</button>
+      <button class="abtn" onclick="clearCache()">Clr cache</button>
+    </div>
+    <div class="bar-sep"></div>
+    <div class="bar-group">
+      <div class="ctog" onclick="toggleVectors()">
+        <div class="togpill" id="t-vec"></div><span class="toglabel">Vectors</span>
+      </div>
+      <div class="ctog" onclick="toggleIds()">
+        <div class="togpill" id="t-ids"></div><span class="toglabel">IDs</span>
+      </div>
+    </div>
+    <div class="bar-sep"></div>
+    <div class="stat"><div class="slabel">FPS</div><div class="sval g" id="sfps">0</div></div>
+    <div class="stat"><div class="slabel">Frames</div><div class="sval c" id="sf">0</div></div>
     <div class="stat"><div class="slabel">Compute / frame</div><div class="sval g" id="sr">0.0000</div></div>
     <div class="stat"><div class="slabel">Energy drift</div><div class="sval g" id="sd">+0.0000%</div></div>
     <div class="stat"><div class="slabel">Cache hits</div><div class="sval" id="sch">0.0%</div></div>
     <div class="stat"><div class="slabel">Events / sec</div><div class="sval" id="sev">0</div></div>
     <div class="stat"><div class="slabel">Objects</div><div class="sval" id="sob">0</div></div>
     <div class="stat"><div class="slabel">Heap</div><div class="sval" id="shp">0</div></div>
+    <div class="stat"><div class="slabel">Isolated</div><div class="sval g" id="siso">0 / 0</div></div>
     <div class="stat"><div class="slabel">Sim time</div><div class="sval c" id="sst">0.000s</div></div>
   </div>
 </div>
@@ -191,6 +210,7 @@ let G_EN    = 1.0;   // sphere-sphere restitution
 let G_ET    = 0.0;
 let G_WEN   = 1.0;   // wall restitution
 let G_WALLS = [];
+let G_WALL_MAP = {};
 const EPS   = 1e-10;
 
 function rebuildWalls() {
@@ -202,6 +222,7 @@ function rebuildWalls() {
     { name:'wBK',axisIdx:2, wallPos:-G_D, normalAxis: 1 },
     { name:'wFR',axisIdx:2, wallPos: G_D, normalAxis:-1 },
   ];
+  G_WALL_MAP={}; for(const w of G_WALLS) G_WALL_MAP[w.name]=w;
 }
 rebuildWalls();
 
@@ -246,28 +267,40 @@ class TF {
 }
 
 // ═══════════════════════════════════════════════════
-// DETECTION
+// DETECTION — reusable scratch vectors (zero alloc in hot path)
 // ═══════════════════════════════════════════════════
+const _dp=new THREE.Vector3(), _dv=new THREE.Vector3();
 function detectSS(fa, fb, tref) {
-  const dp = new THREE.Vector3().subVectors(fa.pos(tref), fb.pos(tref));
-  const dv = new THREE.Vector3().subVectors(fa.vel(tref), fb.vel(tref));
+  const dta=tref-fa.t0, dtb=tref-fb.t0;
+  _dp.set(
+    (fa.p0.x+fa.v0.x*dta+.5*fa.grav.x*dta*dta)-(fb.p0.x+fb.v0.x*dtb+.5*fb.grav.x*dtb*dtb),
+    (fa.p0.y+fa.v0.y*dta+.5*fa.grav.y*dta*dta)-(fb.p0.y+fb.v0.y*dtb+.5*fb.grav.y*dtb*dtb),
+    (fa.p0.z+fa.v0.z*dta+.5*fa.grav.z*dta*dta)-(fb.p0.z+fb.v0.z*dtb+.5*fb.grav.z*dtb*dtb)
+  );
+  _dv.set(
+    (fa.v0.x+fa.grav.x*dta)-(fb.v0.x+fb.grav.x*dtb),
+    (fa.v0.y+fa.grav.y*dta)-(fb.v0.y+fb.grav.y*dtb),
+    (fa.v0.z+fa.grav.z*dta)-(fb.v0.z+fb.grav.z*dtb)
+  );
   const rs = fa.radius + fb.radius;
-  const A = dv.dot(dv), B = 2*dp.dot(dv), C = dp.dot(dp)-rs*rs;
+  const A = _dv.dot(_dv), B = 2*_dp.dot(_dv), C = _dp.dot(_dp)-rs*rs;
   if (A < EPS) return null;
   const disc = B*B - 4*A*C;
   if (disc < 0) return null;
   const sq = Math.sqrt(Math.max(0,disc));
-  const t1 = (-B-sq)/(2*A), t2 = (-B+sq)/(2*A);
+  const inv2A = 1/(2*A);
+  const t1 = (-B-sq)*inv2A, t2 = (-B+sq)*inv2A;
   const tau = t1 > EPS ? t1 : t2 > EPS ? t2 : null;
   return tau !== null ? tref + tau : null;
 }
 
 function detectSW(fn, wall, tref) {
   const cs = wall.wallPos + wall.normalAxis*fn.radius;
-  const p0 = fn.pos(tref), v0 = fn.vel(tref);
-  const pa = [p0.x,p0.y,p0.z][wall.axisIdx];
-  const va = [v0.x,v0.y,v0.z][wall.axisIdx];
-  const ga = [fn.grav.x,fn.grav.y,fn.grav.z][wall.axisIdx];
+  const dt = tref - fn.t0;
+  const ai = wall.axisIdx;
+  const pa = fn.p0.getComponent(ai) + fn.v0.getComponent(ai)*dt + .5*fn.grav.getComponent(ai)*dt*dt;
+  const va = fn.v0.getComponent(ai) + fn.grav.getComponent(ai)*dt;
+  const ga = fn.grav.getComponent(ai);
   const off = pa - cs;
   let tau = null;
   if (Math.abs(ga) < EPS) {
@@ -283,15 +316,19 @@ function detectSW(fn, wall, tref) {
   }
   const tc = tref+tau;
   const vt = fn.vel(tc);
-  const va2 = [vt.x,vt.y,vt.z][wall.axisIdx];
+  const va2 = vt.getComponent(wall.axisIdx);
   if (va2*wall.normalAxis > EPS) return null;
   return tc;
 }
 
 // ═══════════════════════════════════════════════════
 // RESOLUTION — Chatterjee-Ruina impulse space
+// pEntry: {pnScale, ptScale, da_lo, da_hi} from symmetry cache.
+//   da_lo = pnScale/min_mass, da_hi = pnScale/max_mass — avoids 2 divisions per collision.
+//   Correct for both orderings of the pair (fa,fb) and (fb,fa).
+// Tangent frame is skipped entirely when ptScale===0 (G_ET=0, always).
 // ═══════════════════════════════════════════════════
-function resolveSS(fa, fb, tc) {
+function resolveSS(fa, fb, tc, pEntry) {
   const pa=fa.pos(tc), pb=fb.pos(tc);
   const va=fa.vel(tc), vb=fb.vel(tc);
   const sep=new THREE.Vector3().subVectors(pa,pb);
@@ -300,15 +337,32 @@ function resolveSS(fa, fb, tc) {
   const vrel=new THREE.Vector3().subVectors(va,vb);
   const vrn=vrel.dot(n);
   if(vrn>=0) return null;
+
+  // Fast path: no friction (ptScale===0, always true when G_ET=0).
+  // Skip tangent frame + 4 dot-products + 2 vector adds entirely.
+  if(pEntry && pEntry.ptScale===0) {
+    // P = Pn*n only; da_lo/da_hi pre-divide the mass — pick by which body is lighter
+    const da_fa = fa.mass <= fb.mass ? pEntry.da_lo : pEntry.da_hi;
+    const da_fb = fb.mass <  fa.mass ? pEntry.da_lo : pEntry.da_hi;
+    const dvA = -da_fa * vrn;
+    const dvB =  da_fb * vrn;
+    return {
+      va: new THREE.Vector3().copy(va).addScaledVector(n, dvA),
+      vb: new THREE.Vector3().copy(vb).addScaledVector(n, dvB)
+    };
+  }
+
+  // Full path: friction active
+  const pnScale = pEntry ? pEntry.pnScale : (fa.mass*fb.mass/(fa.mass+fb.mass))*(1+G_EN);
+  const ptScale = pEntry ? pEntry.ptScale : (fa.mass*fb.mass/(fa.mass+fb.mass))*G_ET;
   const vtang=new THREE.Vector3().copy(vrel).addScaledVector(n,-vrn);
   let t1=new THREE.Vector3();
   if(vtang.length()>EPS){ t1.copy(vtang).normalize(); }
   else { const arb=Math.abs(n.x)<.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,1,0); t1.crossVectors(n,arb).normalize(); }
   const t2=new THREE.Vector3().crossVectors(n,t1).normalize();
-  const Mr=(fa.mass*fb.mass)/(fa.mass+fb.mass);
-  const Pn=-Mr*(1+G_EN)*vrn;
-  const Pt1=-Mr*G_ET*vrel.dot(t1);
-  const Pt2=-Mr*G_ET*vrel.dot(t2);
+  const Pn  = -pnScale * vrn;
+  const Pt1 = -ptScale * vrel.dot(t1);
+  const Pt2 = -ptScale * vrel.dot(t2);
   const P=new THREE.Vector3().addScaledVector(n,Pn).addScaledVector(t1,Pt1).addScaledVector(t2,Pt2);
   return {
     va: new THREE.Vector3().copy(va).addScaledVector(P, 1/fa.mass),
@@ -330,16 +384,23 @@ function resolveSW(fn, wall, tc) {
 
 // ═══════════════════════════════════════════════════
 // SYMMETRY CACHE
+// Key: normalised mass ratio (min/max, always ≤ 1) + restitution only.
+// Velocities are NOT part of the key — pnScale/ptScale depend solely on
+// masses and restitution, not on the specific velocities of each event.
+// Symmetric by construction: (A,B) and (B,A) always produce the same key.
 // ═══════════════════════════════════════════════════
 class Cache {
   constructor(){ this.m=new Map(); this.hits=0; this.misses=0; }
-  key(mr,vl,vn,en,et){
-    return `${Math.round(mr*100)/100}|${Math.round(vl/10)*10}|${vl>EPS?Math.round(Math.acos(Math.min(1,Math.abs(vn/vl)))*36/Math.PI)*5:0}|${en}|${et}`;
+  // Key is a raw float — zero string allocation, V8 hashes doubles by value.
+  // en/et are NOT included: cache.clear() is always called before G_EN/G_ET change,
+  // so the Map is never stale with respect to restitution.
+  key(ma, mb){
+    return ma <= mb ? ma/mb : mb/ma;  // normalised to (0,1] — symmetric, exact float
   }
-  get(k){return this.m.get(k);}
-  set(k,v){this.m.set(k,v);}
-  clear(){this.m.clear();this.hits=0;this.misses=0;}
-  get rate(){const t=this.hits+this.misses;return t>0?this.hits/t:0;}
+  get(k){ return this.m.get(k); }
+  set(k,v){ this.m.set(k,v); }
+  clear(){ this.m.clear(); this.hits=0; this.misses=0; }
+  get rate(){ const t=this.hits+this.misses; return t>0?this.hits/t:0; }
 }
 
 // ═══════════════════════════════════════════════════
@@ -354,6 +415,16 @@ class Heap {
   _up(i){while(i>0){const p=(i-1)>>1;if(this.d[p].tc<=this.d[i].tc)break;[this.d[p],this.d[i]]=[this.d[i],this.d[p]];i=p;}}
   _dn(i){const n=this.d.length;while(true){let s=i,l=2*i+1,r=2*i+2;if(l<n&&this.d[l].tc<this.d[s].tc)s=l;if(r<n&&this.d[r].tc<this.d[s].tc)s=r;if(s===i)break;[this.d[s],this.d[i]]=[this.d[i],this.d[s]];i=s;}}
   get size(){return this.d.length;}
+  // Lazy purge: remove stale events (generation mismatch)
+  purge(){
+    this.d=this.d.filter(ev=>{
+      const a=objs[ev.ia]; if(!a||a.generation!==ev.ga) return false;
+      if(ev.gb===-1) return true;
+      const b=objs[ev.ib]; return b&&b.generation===ev.gb;
+    });
+    // Rebuild heap in O(n)
+    for(let i=(this.d.length>>1)-1;i>=0;i--) this._dn(i);
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -365,6 +436,23 @@ let fpsDisplay=0, fpsFrames=0;
 let timeMode='LIVE', simT=0, realStart=performance.now()/1000, lastReal=realStart;
 let timeScale=1.0, trailLen=8, showVectors=false, showIds=false;
 let currentScene='BROWNIAN';
+
+// ─── Active / Isolated partition
+// A body is "active" if the heap contains a valid (non-stale) event
+// involving its id. All other bodies are "isolated" — pure free flight,
+// pos(t) evaluation only, zero shared state.
+const activeSet=new Set();
+let isolatedCount=0, activeCount=0;
+function rebuildActiveSet(){
+  activeSet.clear();
+  for(const ev of heap.d){
+    const a=objs[ev.ia]; if(!a||a.generation!==ev.ga) continue;
+    activeSet.add(ev.ia);
+    if(ev.gb!==-1){
+      const b=objs[ev.ib]; if(b&&b.generation===ev.gb) activeSet.add(ev.ib);
+    }
+  }
+}
 
 // ═══════════════════════════════════════════════════
 // THREE.JS SETUP
@@ -410,14 +498,14 @@ function makeMesh(fn, color){
   const mat=new THREE.MeshPhongMaterial({color:color||0x4f7df0,shininess:60,emissive:0x0a0a12});
   const mesh=new THREE.Mesh(new THREE.SphereGeometry(fn.radius,14,10),mat);
   scene3.add(mesh); meshes[fn.id]=mesh;
-  // Trail
+  // Trail — stores positions directly
   const maxP=24;
   const tb=new Float32Array(maxP*3);
   const tg=new THREE.BufferGeometry();
   tg.setAttribute('position',new THREE.BufferAttribute(tb,3));
   tg.setDrawRange(0,0);
   const tl=new THREE.Line(tg,new THREE.LineBasicMaterial({color:0x2a2a35,transparent:true,opacity:.6}));
-  scene3.add(tl); trails[fn.id]={times:[],line:tl,geom:tg,maxP};
+  scene3.add(tl); trails[fn.id]={pts:[],line:tl,geom:tg,maxP};
   // Arrow
   const arr=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(),60,0xffff00,12,6);
   arr.visible=false; scene3.add(arr); arrows[fn.id]=arr;
@@ -439,10 +527,10 @@ function clearAll3D(){
 // ═══════════════════════════════════════════════════
 // PREDICTION + GC
 // ═══════════════════════════════════════════════════
-function predictFor(id){
+function predictFor(id, skipId){
   const fn=objs[id]; if(!fn) return;
   for(const oid of Object.keys(objs)){
-    if(oid===id) continue;
+    if(oid===id||oid===skipId) continue;
     const o=objs[oid];
     const tr=Math.max(fn.t0,o.t0);
     const tc=detectSS(fn,o,tr);
@@ -485,12 +573,13 @@ function getFnAt(id,t){
 // SIMULATION
 // ═══════════════════════════════════════════════════
 function processEvents(ct){
-  while(true){
+  let safety=10000, capHit=false;
+  while((safety--)>0){
     const pk=heap.peek(); if(!pk||pk.tc>ct) break;
     const ev=heap.pop();
     const fa=objs[ev.ia]; if(!fa||fa.generation!==ev.ga) continue;
     if(ev.ib.startsWith('w')){
-      const wall=G_WALLS.find(w=>w.name===ev.ib); if(!wall) continue;
+      const wall=G_WALL_MAP[ev.ib]; if(!wall) continue;
       const nv=resolveSW(fa,wall,ev.tc); if(!nv) continue;
       // Position clamp — prevents sub-surface seeding (tunneling root cause)
       const pc=fa.pos(ev.tc);
@@ -503,12 +592,22 @@ function processEvents(ct){
       predictFor(ev.ia); physCount++; evtSec++;
     } else {
       const fb=objs[ev.ib]; if(!fb||fb.generation!==ev.gb) continue;
-      const res=resolveSS(fa,fb,ev.tc); if(!res) continue;
-      // Cache
-      const vr=new THREE.Vector3().subVectors(fa.vel(ev.tc),fb.vel(ev.tc));
-      const vrn=vr.dot(new THREE.Vector3().subVectors(fa.pos(ev.tc),fb.pos(ev.tc)).normalize());
-      const ck=cache.key(fa.mass/fb.mass,vr.length(),vrn,G_EN,G_ET);
-      if(cache.get(ck)) cache.hits++; else { cache.set(ck,true); cache.misses++; }
+      // Symmetry cache: key on normalised mass ratio + restitution only.
+      // Look up BEFORE resolution so the cached scales can be reused inside resolveSS.
+      const ck = cache.key(fa.mass, fb.mass);
+      let cEntry = cache.get(ck);
+      if(cEntry){ cache.hits++; } else {
+        const mlo = fa.mass <= fb.mass ? fa.mass : fb.mass;
+        const mhi = fa.mass <= fb.mass ? fb.mass : fa.mass;
+        const Mr = mlo*mhi/(mlo+mhi);
+        const pnScale = Mr*(1+G_EN);
+        const ptScale = Mr*G_ET;
+        // da_lo/da_hi: pre-divided by each distinct mass so the fast path
+        // never divides — selected by which body is lighter at lookup time.
+        cEntry = { pnScale, ptScale, da_lo: pnScale/mlo, da_hi: pnScale/mhi };
+        cache.set(ck, cEntry); cache.misses++;
+      }
+      const res=resolveSS(fa, fb, ev.tc, cEntry); if(!res) continue;
       // Position separation — clamp to exact contact distance (prevents FP micro-overlap)
       const pa=fa.pos(ev.tc), pb=fb.pos(ev.tc);
       const sepV=new THREE.Vector3().subVectors(pa,pb);
@@ -524,37 +623,110 @@ function processEvents(ct){
       nfb.generation=fb.generation+1;
       objs[ev.ia]=nfa; objs[ev.ib]=nfb;
       funcs[ev.ia].push(nfa); funcs[ev.ib].push(nfb);
-      predictFor(ev.ia); predictFor(ev.ib); physCount++; evtSec++;
+      predictFor(ev.ia,ev.ib); predictFor(ev.ib,ev.ia); physCount++; evtSec++;
     }
   }
+  if(safety<=0) capHit=true;
+  return capHit;
 }
 
 // ═══════════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════════
-const TRAIL_DT=.1; let lastTrailT=-999;
+const TRAIL_DT=.05; let lastTrailT=-999;
+let fastestId=null, fastestSpd=0, evtCapHit=false;
+const GOLD=new THREE.Color(0.91,0.78,0.20);
+let prevFastestId=null, vtAcc=0;
 
 function renderObjects(){
   const t=simT, doTrail=Math.abs(t-lastTrailT)>=TRAIL_DT;
   if(doTrail) lastTrailT=t;
-  for(const id of Object.keys(objs)){
-    const fn=getFnAt(id,t); const mesh=meshes[id]; if(!fn||!mesh) continue;
-    const p=fn.pos(t); const v=fn.vel(t); const spd=v.length();
-    mesh.position.copy(p);
-    if(currentScene==='BROWNIAN'||currentScene==='GRANULAR') mesh.material.color.copy(speedColor(spd));
-    const tr=trails[id];
-    if(tr){
-      if(doTrail&&timeMode!=='REWIND'){
-        const tl=tr.times;
-        if(!tl.length||Math.abs(tl[tl.length-1]-t)>.001){ tl.push(t); if(tl.length>trailLen+1) tl.shift(); }
-      }
-      const pts=tr.times.slice(0,trailLen); const pa=tr.geom.attributes.position; let cnt=0;
-      for(const pt of pts){ const pf=getFnAt(id,pt); if(!pf) continue; const pp=pf.pos(pt); pa.setXYZ(cnt++,pp.x,pp.y,pp.z); }
-      pa.needsUpdate=true; tr.geom.setDrawRange(0,cnt);
-    }
-    const arr=arrows[id];
-    if(arr){ arr.visible=showVectors&&spd>2; if(showVectors&&spd>2){ arr.position.copy(p); arr.setDirection(v.clone().normalize()); arr.setLength(Math.min(spd*.25,120),14,7); } }
+  const needSpeed=currentScene==='BROWNIAN'||currentScene==='GRANULAR';
+
+  // Rebuild active/isolated partition
+  rebuildActiveSet();
+  const ids=Object.keys(objs);
+  const totalN=ids.length;
+  activeCount=activeSet.size;
+  isolatedCount=totalN-activeCount;
+
+  // First pass: find fastest particle and smallest radius
+  let maxSpdSq=0, maxId=null, minR=Infinity;
+  for(let i=0;i<totalN;i++){
+    const id=ids[i];
+    const fn=objs[id]; if(!fn) continue;
+    if(fn.radius<minR) minR=fn.radius;
+    const v=fn.vel(t); const s=v.x*v.x+v.y*v.y+v.z*v.z;
+    if(s>maxSpdSq){ maxSpdSq=s; maxId=id; }
   }
+  fastestSpd=Math.sqrt(maxSpdSq); fastestId=maxId;
+
+  // Restore previous fastest to normal emissive
+  if(prevFastestId&&prevFastestId!==maxId&&meshes[prevFastestId]){
+    meshes[prevFastestId].material.emissive.setHex(0x0a0a12);
+  }
+  prevFastestId=maxId;
+
+  for(let i=0;i<totalN;i++){
+    const id=ids[i];
+    const isIsolated=!activeSet.has(id);
+    // Isolated bodies: use objs[id] directly (their TF hasn't changed)
+    const fn=isIsolated?objs[id]:getFnAt(id,t);
+    const mesh=meshes[id]; if(!fn||!mesh) continue;
+    const p=fn.pos(t);
+    mesh.position.copy(p);
+    let v=null, spd=0;
+    if(needSpeed||showVectors){ v=fn.vel(t); spd=v.length(); }
+    if(id===maxId){
+      mesh.material.color.copy(GOLD);
+      mesh.material.emissive.setHex(0x332800);
+    } else {
+      if(needSpeed) mesh.material.color.copy(speedColor(spd));
+      mesh.material.emissive.setHex(0x0a0a12);
+    }
+    const tr=trails[id];
+    if(tr&&trailLen>0){
+      if(doTrail&&timeMode!=='REWIND'){
+        tr.pts.push(p.x,p.y,p.z);
+        const maxCoords=(trailLen+1)*3;
+        if(tr.pts.length>maxCoords) tr.pts.splice(0,tr.pts.length-maxCoords);
+      }
+      const pa=tr.geom.attributes.position;
+      const nPts=Math.floor(tr.pts.length/3);
+      for(let i=0;i<nPts;i++) pa.setXYZ(i,tr.pts[i*3],tr.pts[i*3+1],tr.pts[i*3+2]);
+      pa.setXYZ(nPts,p.x,p.y,p.z);
+      pa.needsUpdate=true; tr.geom.setDrawRange(0,nPts+1);
+    } else if(tr){ tr.geom.setDrawRange(0,0); }
+    if(showVectors){
+      const arr=arrows[id];
+      if(arr&&v&&spd>2){ arr.visible=true; arr.position.copy(p); arr.setDirection(v.clone().normalize()); arr.setLength(Math.min(spd*.25,120),14,7); }
+      else if(arr) arr.visible=false;
+    }
+  }
+  updateVelTracker(minR);
+}
+
+function updateVelTracker(minR){
+  if(++vtAcc%5!==0) return;
+  const el=document.getElementById('vel-tracker');
+  if(!fastestId||!fpsDisplay){ el.innerHTML=''; return; }
+  const dt=1/fpsDisplay;
+  const stepDist=(fastestSpd*dt).toFixed(1);
+  const tunnelLimit=Math.round(2*minR/dt);
+  const diamsPerFrame=fastestSpd*dt/(2*minR);
+  const stepProb=Math.min(diamsPerFrame>1?1-1/diamsPerFrame:0,1);
+  const fpMargin=minR/(fastestSpd*1e-12);
+  const tfeStatus=fpMargin>1e3?'exact':'fp-marginal';
+  let html=`<span class="vt-label">Fastest</span> <span class="vt-id">${fastestId}</span><br>`;
+  html+=`<span class="vt-speed">${fastestSpd.toFixed(0)} u/s</span><br>`;
+  html+=`<span class="vt-label">Step engine @ ${fpsDisplay} fps:</span><br>`;
+  html+=`&nbsp;&nbsp;<span class="vt-label">Move/frame:</span> <span class="vt-step">${stepDist} u</span> &nbsp;`;
+  html+=`<span class="vt-label">Diameter:</span> <span class="vt-limit">${(2*minR).toFixed(0)} u</span><br>`;
+  html+=`&nbsp;&nbsp;<span class="vt-label">Tunnel limit:</span> <span class="vt-limit">${tunnelLimit} u/s</span><br>`;
+  html+=`&nbsp;&nbsp;<span class="vt-label">P(tunnel):</span> <span class="vt-step">${(stepProb*100).toFixed(1)}%</span><br>`;
+  html+=`<span class="vt-label">TFE:</span> <span class="vt-tfe">${tfeStatus==='exact'?'P(tunnel) = 0.000%':'⚠ FP precision marginal'}</span>`;
+  if(evtCapHit) html+=`<br><span class="vt-warn">⚠ EVENT CAP HIT</span>`;
+  el.innerHTML=html;
 }
 
 function totalEnergy(t){ let e=0; for(const id of Object.keys(funcs)){ const fn=getFnAt(id,t); if(fn) e+=fn.E(t); } return e; }
@@ -650,6 +822,32 @@ const SCENES={
       {id:'cc-rwn',label:'Ball count',min:5,max:20,val:10,step:1},
       {id:'cc-rwspd',label:'Launch speed',min:80,max:500,val:220,step:20}
     ]
+  },
+  STACKING:{
+    name:'Stacking (Zeno)',
+    desc:'Spheres dropped vertically onto a floor. With no resting-contact solver, each sphere micro-bounces forever — event rate diverges toward Zeno\'s paradox. Watch the Heap and Events/sec counters spike.',
+    proves:'Stress: Zeno contact · resting contact gap · event rate divergence · safety cap hit',
+    controls:[
+      {id:'cc-stn',label:'Stack height',min:3,max:12,val:6,step:1},
+      {id:'cc-stg',label:'Gravity',min:100,max:900,val:500,step:50}
+    ]
+  },
+  SYMMETRIC:{
+    name:'Symmetric 3-Body',
+    desc:'Two spheres approach a stationary target from opposite sides at equal speed. True simultaneous contact requires an LCP solve — TFE resolves sequentially, producing an order-dependent result. Compare with the theoretical symmetric outcome.',
+    proves:'Stress: order-dependent resolution · pairwise ≠ simultaneous · LCP gap',
+    controls:[
+      {id:'cc-syspd',label:'Approach speed',min:100,max:800,val:400,step:25}
+    ]
+  },
+  INELASTIC:{
+    name:'Inelastic Collapse',
+    desc:'Low restitution particles in a small box. As kinetic energy dissipates, collision intervals shrink toward zero — the event queue floods with micro-collisions. A real granular solver aggregates resting clusters; TFE cannot.',
+    proves:'Stress: inelastic collapse · Zeno divergence · event flood · granular aggregation gap',
+    controls:[
+      {id:'cc-icln',label:'Particle count',min:15,max:60,val:30,step:5},
+      {id:'cc-iclr',label:'Restitution %',min:20,max:70,val:40,step:5}
+    ]
   }
 };
 
@@ -684,7 +882,7 @@ function randPos(radius,placed,maxTries=500){
 function getCtrlVal(id, def){ const el=document.getElementById(id); return el?parseFloat(el.value):def; }
 
 // ─── Zero-gravity scenes ignore the gravity slider
-const ZERO_GRAV=new Set(['BROWNIAN','CASCADE','MAXWELL','ANTITUNNEL','EVENTSTORM']);
+const ZERO_GRAV=new Set(['BROWNIAN','CASCADE','MAXWELL','ANTITUNNEL','EVENTSTORM','SYMMETRIC']);
 
 function setupBROWNIAN(){
   G_W=380; G_H=320; G_D=380;
@@ -711,9 +909,7 @@ function setupBROWNIAN(){
 function setupGRANULAR(){
   G_W=300; G_H=240; G_D=300;
   rebuildWalls(); updateBoxViz();
-  G_EN=0.72; cache.clear();
-  document.getElementById('s-rest').value=72;
-  document.getElementById('v-rest').textContent='0.72';
+
   const n=Math.round(getCtrlVal('cc-gn',45));
   const placed=[];
   for(let i=0;i<n;i++){
@@ -825,9 +1021,6 @@ function setupIDLECOST(){
 function setupEXACTCONS(){
   G_W=320; G_H=260; G_D=320;
   rebuildWalls(); updateBoxViz();
-  G_EN=1.0; cache.clear();
-  document.getElementById('s-rest').value=100;
-  document.getElementById('v-rest').textContent='1.00';
   const n=Math.round(getCtrlVal('cc-ecn',18));
   const placed=[];
   for(let i=0;i<n;i++){
@@ -857,9 +1050,6 @@ function setupEVENTSTORM(){
 function setupREWINDSHOW(){
   G_W=350; G_H=290; G_D=350;
   rebuildWalls(); updateBoxViz();
-  G_EN=1.0; cache.clear();
-  document.getElementById('s-rest').value=100;
-  document.getElementById('v-rest').textContent='1.00';
   const n=Math.round(getCtrlVal('cc-rwn',10));
   const spd=getCtrlVal('cc-rwspd',220);
   const placed=[];
@@ -871,7 +1061,88 @@ function setupREWINDSHOW(){
   }
 }
 
-const SETUPS={BROWNIAN:setupBROWNIAN,GRANULAR:setupGRANULAR,CASCADE:setupCASCADE,BILLIARDS:setupBILLIARDS,MAXWELL:setupMAXWELL,ANTITUNNEL:setupANTITUNNEL,IDLECOST:setupIDLECOST,EXACTCONS:setupEXACTCONS,EVENTSTORM:setupEVENTSTORM,REWINDSHOW:setupREWINDSHOW};
+function setupSTACKING(){
+  const n=Math.round(getCtrlVal('cc-stn',6));
+  const gv=getCtrlVal('cc-stg',500);
+  G_W=200; G_H=300; G_D=200;
+  G_GRAV=new THREE.Vector3(0,-gv,0);
+  rebuildWalls(); updateBoxViz();
+  const r=20, mass=r*r*r*0.01;
+  // Stack spheres vertically, each resting on the one below
+  for(let i=0;i<n;i++){
+    const y=-G_H+r+i*r*2+i*1; // slight gap so they drop
+    spawn(new THREE.Vector3(0,y+10,0),new THREE.Vector3(0,0,0),mass,r,
+      new THREE.Color().setHSL(i/n*0.65+0.0,0.50,0.50));
+  }
+}
+
+function setupSYMMETRIC(){
+  G_W=400; G_H=100; G_D=100;
+  G_GRAV=new THREE.Vector3(0,0,0);
+  rebuildWalls(); updateBoxViz();
+  const spd=getCtrlVal('cc-syspd',400);
+  const r=22, mass=100;
+  // Stationary target in center
+  spawn(new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,0),mass,r,
+    new THREE.Color(0.65,0.65,0.70));
+  // Left attacker
+  spawn(new THREE.Vector3(-200,0,0),new THREE.Vector3(spd,0,0),mass,r,
+    new THREE.Color(0.20,0.55,0.85));
+  // Right attacker
+  spawn(new THREE.Vector3(200,0,0),new THREE.Vector3(-spd,0,0),mass,r,
+    new THREE.Color(0.85,0.30,0.20));
+}
+
+function setupINELASTIC(){
+  const n=Math.round(getCtrlVal('cc-icln',30));
+  const restPct=Math.round(getCtrlVal('cc-iclr',40));
+  G_W=120; G_H=200; G_D=120;
+  G_GRAV=new THREE.Vector3(0,-600,0);
+  G_EN=restPct/100; cache.clear();
+  rebuildWalls(); updateBoxViz();
+  // Spawn all spheres in the upper half so they fall and pile up
+  const placed=[];
+  for(let i=0;i<n;i++){
+    const r=14+Math.random()*4;
+    const yMin=0, yMax=G_H-r;
+    const p=new THREE.Vector3(
+      (Math.random()*2-1)*(G_W-r),
+      yMin+Math.random()*(yMax-yMin),
+      (Math.random()*2-1)*(G_D-r));
+    const v=new THREE.Vector3((Math.random()*2-1)*80,0,(Math.random()*2-1)*80);
+    spawn(p,v,r*r*r*0.01,r,new THREE.Color().setHSL(0.08+Math.random()*0.06,0.50,0.45));
+    placed.push([r,p]);
+  }
+  }
+
+
+const SETUPS={BROWNIAN:setupBROWNIAN,GRANULAR:setupGRANULAR,CASCADE:setupCASCADE,BILLIARDS:setupBILLIARDS,MAXWELL:setupMAXWELL,ANTITUNNEL:setupANTITUNNEL,IDLECOST:setupIDLECOST,EXACTCONS:setupEXACTCONS,EVENTSTORM:setupEVENTSTORM,REWINDSHOW:setupREWINDSHOW,STACKING:setupSTACKING,SYMMETRIC:setupSYMMETRIC,INELASTIC:setupINELASTIC};
+const SCENE_DEFAULTS={
+  BROWNIAN:{grav:0,rest:100,ts:100},
+  GRANULAR:{grav:400,rest:72,ts:100},
+  CASCADE:{grav:0,rest:100,ts:100},
+  BILLIARDS:{grav:50,rest:100,ts:100},
+  MAXWELL:{grav:0,rest:100,ts:100},
+  ANTITUNNEL:{grav:0,rest:100,ts:100},
+  IDLECOST:{grav:400,rest:100,ts:100},
+  EXACTCONS:{grav:400,rest:100,ts:100},
+  EVENTSTORM:{grav:0,rest:100,ts:100},
+  REWINDSHOW:{grav:400,rest:100,ts:100},
+  STACKING:{grav:500,rest:100,ts:100},
+  SYMMETRIC:{grav:0,rest:100,ts:100},
+  INELASTIC:{grav:600,rest:40,ts:100},
+};
+function resetSliders(name){
+  const d=SCENE_DEFAULTS[name]||{grav:400,rest:100,ts:100};
+  document.getElementById('s-grav').value=d.grav;
+  document.getElementById('v-grav').textContent=d.grav;
+  document.getElementById('s-rest').value=d.rest;
+  document.getElementById('v-rest').textContent=(d.rest/100).toFixed(2);
+  G_EN=d.rest/100; cache.clear();
+  document.getElementById('s-ts').value=d.ts;
+  document.getElementById('v-ts').textContent=(d.ts/100).toFixed(2)+'×';
+  timeScale=d.ts/100;
+}
 
 function resetCurrentScene(){
   if(!ZERO_GRAV.has(currentScene)){
@@ -886,7 +1157,7 @@ function resetCurrentScene(){
   updateAnnotation();
 }
 
-const SCENE_ORDER=['BROWNIAN','GRANULAR','CASCADE','BILLIARDS','MAXWELL','ANTITUNNEL','IDLECOST','EXACTCONS','EVENTSTORM','REWINDSHOW'];
+const SCENE_ORDER=['BROWNIAN','GRANULAR','CASCADE','BILLIARDS','MAXWELL','ANTITUNNEL','IDLECOST','EXACTCONS','EVENTSTORM','REWINDSHOW','STACKING','SYMMETRIC','INELASTIC'];
 function switchScene(name){
   currentScene=name;
   document.querySelectorAll('.stab').forEach((t,i)=>{
@@ -897,6 +1168,8 @@ function switchScene(name){
   document.getElementById('si-desc').textContent=sc.desc;
   document.getElementById('si-proves').textContent=sc.proves;
   buildSceneControls(sc.controls);
+  resetSliders(name);
+  setMode('LIVE');
   resetCurrentScene();
 }
 
@@ -990,7 +1263,7 @@ function spawnRandom(){
   initE=totalEnergy(simT);
 }
 
-function clearTrails(){ Object.values(trails).forEach(t=>{ t.times=[]; t.geom.setDrawRange(0,0); }); }
+function clearTrails(){ Object.values(trails).forEach(t=>{ t.pts=[]; t.geom.setDrawRange(0,0); }); }
 function clearCache(){ cache.clear(); }
 
 // ═══════════════════════════════════════════════════
@@ -1014,6 +1287,11 @@ function updateHUD(rn){
   document.getElementById('sev').textContent=evtLastSec;
   document.getElementById('sob').textContent=Object.keys(objs).length;
   document.getElementById('shp').textContent=heap.size;
+  const isoEl=document.getElementById('siso');
+  const totalBodies=Object.keys(objs).length;
+  isoEl.textContent=isolatedCount+' / '+totalBodies;
+  const isoPct=totalBodies>0?isolatedCount/totalBodies:0;
+  isoEl.className='sval '+(isoPct>=.8?'g':isoPct>=.4?'':'a');
   document.getElementById('sst').textContent=simT.toFixed(3)+'s';
 }
 
@@ -1030,11 +1308,9 @@ function animate(){
     case 'SLOWMO': simT+=rd*.1*timeScale; break;
   }
   if(timeMode==='REWIND'){
-    let earliest=simT;
-    for(const a of Object.values(funcs)) if(a.length&&a[0].t0<earliest) earliest=a[0].t0;
-    if(simT<earliest) simT=earliest;
+    if(simT<0) simT=0;
   }
-  if(timeMode==='LIVE'||timeMode==='SLOWMO'){ processEvents(simT); gc(); }
+  if(timeMode==='LIVE'||timeMode==='SLOWMO'){ evtCapHit=processEvents(simT); gc(); if(heap.size>5000) heap.purge(); }
   if(rn-lastSecT>=1){ evtLastSec=evtSec; evtSec=0; fpsDisplay=fpsFrames; fpsFrames=0; lastSecT=rn; }
   fpsFrames++;
   renderObjects();
@@ -1070,6 +1346,9 @@ document.addEventListener('keydown',e=>{
   else if(k==='8') switchScene('EXACTCONS');
   else if(k==='9') switchScene('EVENTSTORM');
   else if(k==='0') switchScene('REWINDSHOW');
+  else if(k==='q') switchScene('STACKING');
+  else if(k==='w') switchScene('SYMMETRIC');
+  else if(k==='e') switchScene('INELASTIC');
   else if(k===' '||k==='p') setMode(timeMode==='PAUSE'?'LIVE':'PAUSE');
   else if(k==='r') setMode('REWIND');
   else if(k==='s') setMode('SLOWMO');
@@ -1086,7 +1365,7 @@ document.addEventListener('keydown',e=>{
   buildSceneControls(SCENES.BROWNIAN.controls);
   resetCurrentScene();
   animate();
-  console.log('[TFE] 1=Brownian 2=Granular 3=Cascade 4=Billiards 5=Maxwell 6=AntiTunnel 7=IdleCost 8=ExactCons 9=EventStorm 0=Rewind | Space=pause R=rewind S=slow L=live V=vectors Enter=reset +=spawn');
+  console.log('[TFE] 1=Brownian 2=Granular 3=Cascade 4=Billiards 5=Maxwell 6=AntiTunnel 7=IdleCost 8=ExactCons 9=EventStorm 0=Rewind Q=Stacking W=Symmetric E=Inelastic | Space=pause R=rewind S=slow L=live V=vectors Enter=reset +=spawn');
 })();
 </script>
 </body>
