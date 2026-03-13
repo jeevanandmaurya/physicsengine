@@ -66,7 +66,7 @@ input[type=range]:hover::-webkit-slider-thumb{background:var(--ac);}
 .inf-desc{font-size:10px;color:var(--t2);line-height:1.6;margin-bottom:4px;}
 .inf-proves{font-size:9px;font-family:var(--mm);color:var(--ac);opacity:.7;}
 /* Symp overlay */
-#symp{position:absolute;top:14px;right:14px;pointer-events:none;text-align:right;font-family:var(--mm);font-size:9px;line-height:1.9;display:none;}
+#symp{position:absolute;top:14px;right:14px;pointer-events:auto;text-align:right;font-family:var(--mm);font-size:9px;line-height:1.9;display:none;max-height:80vh;overflow-y:auto;}
 .sy-hd{color:var(--vi);font-size:8px;letter-spacing:.12em;font-weight:600;}
 .sy-r{color:var(--t2);}
 .sy-v{color:var(--t1);}
@@ -145,6 +145,11 @@ input[type=range]:hover::-webkit-slider-thumb{background:var(--ac);}
     <div class="sy-r">config dim&nbsp;<span class="sy-v" id="sy-cd">0D</span></div>
     <div class="sy-r">energy drift&nbsp;<span class="sy-v" id="sy-ed">0%</span></div>
     <div class="sy-r">PGS iters&nbsp;<span class="sy-v" id="sy-it">200</span></div>
+    <div id="sy-db" style="display:none; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px; text-align:left; background:rgba(0,0,0,0.4); padding:10px; border-radius:4px;">
+      <div class="sy-hd" style="color:var(--t1); margin-bottom:6px;">DEBUG INSPECTOR</div>
+      <div id="db-heap" style="margin-top:6px; font-size:9px; line-height:1.5;"></div>
+      <div id="db-lcp" style="margin-top:10px; border-top:1px dashed rgba(255,255,255,0.1); padding-top:8px; font-size:9px; line-height:1.5;"></div>
+    </div>
   </div>
 </div>
 
@@ -165,6 +170,7 @@ input[type=range]:hover::-webkit-slider-thumb{background:var(--ac);}
   <div class="bgrp">
     <div class="tg" onclick="A.togTrails()"><div class="tgp on" id="tg-tr"></div><span class="tgl">Trails</span></div>
     <div class="tg" onclick="A.togVec()"><div class="tgp" id="tg-v"></div><span class="tgl">Vectors</span></div>
+    <div class="tg" onclick="A.togDebug()"><div class="tgp" id="tg-d"></div><span class="tgl">Debug</span></div>
   </div>
   <div class="bsep"></div>
   <div class="st"><div class="sl">FPS</div><div class="sv g" id="sfps">0</div></div>
@@ -452,19 +458,22 @@ class TFEngine{
     // Build active contacts (approaching only), compute normals
     const active=[];
     for(const c of contacts){
-      let nx=0,ny=0,nz=0,ib=null;
+      let nx=0,ny=0,nz=0,ib=null,pen=0;
       if(c.type==='sphere'){
         const pi=Psnap.get(c.ia),pj=Psnap.get(c.ib);
         const dx=pi.x-pj.x,dy=pi.y-pj.y,dz=pi.z-pj.z;
         const len=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;
         nx=dx/len;ny=dy/len;nz=dz/len;ib=c.ib;
+        pen=(this.bodies.get(c.ia).radius+this.bodies.get(c.ib).radius)-len;
       }else{
-        const w=c.wall;
+        const w=c.wall,pi=Psnap.get(c.ia),fn=this.bodies.get(c.ia);
         if(w.ax===0)nx=w.sgn;else if(w.ax===1)ny=w.sgn;else nz=w.sgn;
+        const cs=w.pos+w.sgn*fn.radius,axs=['x','y','z'][w.ax];
+        pen=(cs-pi[axs])*w.sgn;
       }
       const vi=Vsnap.get(c.ia),vj=ib?Vsnap.get(ib):{x:0,y:0,z:0};
       const vrn=(vi.x-vj.x)*nx+(vi.y-vj.y)*ny+(vi.z-vj.z)*nz;
-      if(vrn>-1e-8)continue;
+      if(vrn>1e-8 && pen<=1e-3)continue;
       active.push({type:c.type,ia:c.ia,ib,wall:c.wall,nx,ny,nz,vrn});
     }
     if(!active.length)return;
@@ -507,6 +516,7 @@ class TFEngine{
     // Handles N simultaneous contacts in one k×k system
     // P ≥ 0 enforced per-iteration (no separate clamping pass needed)
     const P=solvePGS(M,rhs,k);
+    this.lastLCP={M:Array.from(M),rhs:Array.from(rhs),P:Array.from(P),k};
 
     // Pre-collision velocities (for energy correction)
     const VB=new Map();
@@ -599,7 +609,7 @@ class TFEngine{
     }
     if(Ka<1e-12)return;
     const s=Math.sqrt(Kb/Ka);
-    if(Math.abs(s-1)<1e-8)return;
+    
     // Rescale CM-frame velocities → preserves momentum EXACTLY, corrects energy
     for(const id of bids){
       const va=VA.get(id);
@@ -631,7 +641,7 @@ class TFEngine{
     const vz=(fa.v0.z+fa.grav.z*dta)-(fb.v0.z+fb.grav.z*dtb);
     const rs=fa.radius+fb.radius,A=vx*vx+vy*vy+vz*vz;
     const B=2*(px*vx+py*vy+pz*vz),C=px*px+py*py+pz*pz-rs*rs;
-    if(C<=2e-2&&B<-1e-8)return tref+EPS*1.5;
+    if(C<=2e-2&&(B<-1e-8||C<0))return tref+SIMUL_EPS*0.5;
     if(A<EPS)return null;
     const disc=B*B-4*A*C;if(disc<0)return null;
     const sq=Math.sqrt(Math.max(0,disc));
@@ -646,7 +656,7 @@ class TFEngine{
     const va=fn.v0[ax]+fn.grav[ax]*dt,ga=fn.grav[ax];
     const cs=wall.pos+wall.sgn*fn.radius,off=pa-cs;
     const distW=off*wall.sgn,vRel=va*wall.sgn,aRel=ga*wall.sgn;
-    if(distW<=2e-2&&(vRel<-1e-8||(Math.abs(vRel)<=1e-8&&aRel<0)))return tref+EPS*1.5;
+    if(distW<=2e-2&&(vRel<-1e-8||distW<0||(Math.abs(vRel)<=1e-8&&aRel<0)))return tref+SIMUL_EPS*0.5;
     let tau=null;
     if(Math.abs(ga)<EPS){
       if(Math.abs(va)<EPS)return null;const t=-off/va;if(t>EPS)tau=t;
@@ -686,7 +696,7 @@ class R2D{
     this.scale=1;this.ox=0;this.oy=0;
     this.trails=new Map();// id→{pts,color}
     this.trailMax=50;
-    this.showTrails=true;this.showVec=false;
+    this.showTrails=true;this.showVec=false;this.showDebug=false;
     this._TRAIL_DT=0.04;this._lastTrailT=-99;
     this._resize();
     // Pan
@@ -768,6 +778,65 @@ class R2D{
         ctx.closePath();ctx.fill();ctx.restore();
       }
     }
+
+    if(this.showDebug){
+      this._drawDebug(ctx, t, state);
+    }
+  }
+
+  _drawDebug(ctx, t, state){
+    ctx.save();
+    // Draw trajectories
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    for(const [id, body] of state){
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(${body.color.r*255|0},${body.color.g*255|0},${body.color.b*255|0},0.5)`;
+      const b = this.eng.bodies.get(id); // actual body to get equation
+      if(!b) continue;
+      
+      const s0 = this.toS(b.pos(t));
+      ctx.moveTo(s0.x, s0.y);
+      let step = 0.05, maxT = t + 2.0; 
+      for(let ct = t + step; ct <= maxT; ct += step){
+        const p = this.toS(b.pos(ct));
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    
+    // Draw heap intersection events
+    for(const ev of this.eng.heap.d){
+      if(ev.tc <= t) continue;
+
+      let pos = null;
+      if(ev.ib !== null){
+        const b1 = this.eng.bodies.get(ev.ia), b2 = this.eng.bodies.get(ev.ib);
+        if(!b1 || !b2) continue;
+        const p1 = b1.pos(ev.tc), p2 = b2.pos(ev.tc);
+        pos = { x: (p1.x + p2.x)*0.5, y: (p1.y + p2.y)*0.5 };
+      }else if(ev.wid !== null){
+        const b = this.eng.bodies.get(ev.ia);
+        if(b) pos = b.pos(ev.tc);
+      }
+      
+      if(pos){
+        const s = this.toS(pos);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 4, 0, Math.PI*2);
+        ctx.strokeStyle = '#ff0055';
+        ctx.fillStyle = 'rgba(255,0,85,0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.fillStyle = '#ff0055';
+        ctx.font = '10px monospace';
+        ctx.fillText(`t=${ev.tc.toFixed(3)}s`, s.x + 6, s.y - 6);
+      }
+    }
+    ctx.restore();
   }
 
   _drawGrid(ctx){
@@ -840,7 +909,7 @@ class R3D{
     const pl2=new THREE.PointLight(0x8b5cf6,.5,2000);pl2.position.set(-300,-100,-250);this.sc.add(pl2);
     const pl3=new THREE.PointLight(0x22d3b0,.3,1500);pl3.position.set(0,-200,300);this.sc.add(pl3);
     this.meshes=new Map();this.trails3=new Map();this.arrows=new Map();
-    this.showTrails=true;this.showVec=false;
+    this.showTrails=true;this.showVec=false;this.showDebug=false;
     this.trailMax=50;
     this._TRAIL_DT=0.04;this._lastTrailT=-99;
     this._boxW=null;this._buildBox();
@@ -902,7 +971,100 @@ class R3D{
         if(arr.visible){arr.position.copy(body.pos);arr.setDirection(body.vel.clone().normalize());arr.setLength(Math.min(spd*.2,100),12,6);}
       }
     }
+
+    if(this.showDebug){
+      this._drawDebug(t, state);
+    } else {
+      this._clearDebug();
+    }
+
     this.ctrl.update();this.ren.render(this.sc,this.cam);
+  }
+
+  _drawDebug(t, state){
+    if(!this.dbgGroup){
+      this.dbgGroup = new THREE.Group();
+      this.sc.add(this.dbgGroup);
+      this.dbgLines = new Map();
+      this.dbgDots = [];
+    }
+    
+    // Trajectories
+    const activeIds = new Set();
+    for(const [id, body] of state){
+      activeIds.add(id);
+      const b = this.eng.bodies.get(id);
+      if(!b) continue;
+      
+      let line = this.dbgLines.get(id);
+      if(!line){
+        const mat = new THREE.LineDashedMaterial({ color: b.color, dashSize: 4, gapSize: 4, opacity: 0.5, transparent: true });
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(50 * 3), 3));
+        line = new THREE.Line(geom, mat);
+        line.computeLineDistances();
+        this.dbgGroup.add(line);
+        this.dbgLines.set(id, line);
+      }
+      
+      const posArr = line.geometry.attributes.position.array;
+      let step=0.05, maxT=t+2.5, i=0;
+      for(let ct=t; ct<=maxT && i<50; ct+=step, i++){
+        const p = b.pos(ct);
+        posArr[i*3]=p.x; posArr[i*3+1]=p.y; posArr[i*3+2]=p.z;
+      }
+      line.geometry.attributes.position.needsUpdate = true;
+      line.geometry.setDrawRange(0, i);
+      line.computeLineDistances();
+    }
+    for(const id of this.dbgLines.keys()){
+      if(!activeIds.has(id)){
+        const line = this.dbgLines.get(id);
+        this.dbgGroup.remove(line);
+        line.geometry.dispose();
+        line.material.dispose();
+        this.dbgLines.delete(id);
+      }
+    }
+    
+    // Intersections (from heap)
+    let dotIdx = 0;
+    for(const ev of this.eng.heap.d){
+      if(ev.tc <= t) continue;
+      
+      let pos = null;
+      if(ev.ib !== null){
+        const b1 = this.eng.bodies.get(ev.ia), b2 = this.eng.bodies.get(ev.ib);
+        if(!b1 || !b2) continue;
+        const p1 = b1.pos(ev.tc), p2 = b2.pos(ev.tc);
+        pos = new THREE.Vector3((p1.x+p2.x)*0.5, (p1.y+p2.y)*0.5, (p1.z+p2.z)*0.5);
+      } else if(ev.wid !== null){
+        const b = this.eng.bodies.get(ev.ia);
+        if(b) pos = b.pos(ev.tc);
+      }
+      
+      if(pos){
+        if(dotIdx >= this.dbgDots.length){
+          const md = new THREE.Mesh(new THREE.SphereGeometry(4, 16, 16), new THREE.MeshBasicMaterial({color: 0xff0055, wireframe: true}));
+          this.dbgGroup.add(md);
+          this.dbgDots.push(md);
+        }
+        this.dbgDots[dotIdx].position.copy(pos);
+        this.dbgDots[dotIdx].visible = true;
+        dotIdx++;
+      }
+    }
+    for(let i=dotIdx; i<this.dbgDots.length; i++) this.dbgDots[i].visible = false;
+  }
+
+  _clearDebug(){
+    if(!this.dbgGroup) return;
+    this.sc.remove(this.dbgGroup);
+    for(const line of this.dbgLines.values()){ line.geometry.dispose(); line.material.dispose(); }
+    for(const dot of this.dbgDots){ dot.geometry.dispose(); dot.material.dispose(); }
+    this.dbgLines.clear();
+    this.dbgDots = [];
+    this.dbgGroup = null;
   }
 
   clearTrails(){for(const t of this.trails3.values())t.pts=[];}
@@ -942,6 +1104,21 @@ function randPos(W,H,r,placed,tries=400){
 // SCENES
 // ══════════════════════════════════════════════════════════════
 const SCENES={
+  DEBUG:{
+    group:'DEBUG',
+    name:'Debug UI',
+    desc:'A specialized simple scene strictly for analyzing trajectory projections and PGS LCP debug matrices.',
+    proves:'Debugging visibility tool',
+    grav:0,rest:100,
+    ctrl:[],
+    setup(eng,gc){
+      eng.setBounds(260,260);
+      eng.addBody(new THREE.Vector3(-100,0,0),new THREE.Vector3(120,0,0),100,20,new THREE.Color(1,0.2,0.5));
+      eng.addBody(new THREE.Vector3(-40,0,0),new THREE.Vector3(0,0,0),100,20,new THREE.Color(0.2,1,0.5));
+      eng.addBody(new THREE.Vector3(40,0,0),new THREE.Vector3(0,0,0),100,20,new THREE.Color(0.2,0.5,1));
+      setTimeout(()=>{ if(window.A && !window.A.showDebug) window.A.togDebug(); else if(typeof A !== 'undefined' && !A.showDebug) A.togDebug(); }, 50);
+    }
+  },
   // ── GROUP: SYMPLECTIC CORE ────────────────────────────────
   EQUILATERAL:{
     group:'SYMPLECTIC CORE',
@@ -1248,6 +1425,7 @@ const SCENES={
 
         this.showTrails = true;
         this.showVec = false;
+        this.showDebug = false;
 
         this._wireGlobalControls();
         this._buildSceneList();
@@ -1484,9 +1662,18 @@ const SCENES={
         this._syncToggleUI();
       }
 
+      togDebug() {
+        this.showDebug = !this.showDebug;
+        if (this.r2d) this.r2d.showDebug = this.showDebug;
+        if (this.r3d) this.r3d.showDebug = this.showDebug;
+        this._syncToggleUI();
+        document.getElementById('sy-db').style.display = this.showDebug ? 'block' : 'none';
+      }
+
       _syncToggleUI() {
         document.getElementById('tg-tr').classList.toggle('on', this.showTrails);
         document.getElementById('tg-v').classList.toggle('on', this.showVec);
+        document.getElementById('tg-d').classList.toggle('on', this.showDebug);
       }
 
       _timeDelta(dtReal) {
@@ -1528,6 +1715,42 @@ const SCENES={
         document.getElementById('sy-cd').textContent = this.mode === '2d' ? '2D' : '3D';
         document.getElementById('sy-ed').textContent = driftStr;
         document.getElementById('sy-it').textContent = '200';
+
+        if(this.showDebug) {
+          const hpEl = document.getElementById('db-heap');
+          const lcpEl = document.getElementById('db-lcp');
+          
+          let hpStr = `<span style="color:var(--t2)">Heap Events (${this.engine.heap.size})</span><br>`;
+          const maxHpShow = 8;
+          const hpItems = this.engine.heap.d.slice(0, maxHpShow).sort((a,b)=>a.tc-b.tc);
+          for(const ev of hpItems) {
+             const vType = ev.ib !== null ? 'ss' : 'sw';
+             const vB = ev.ib !== null ? ev.ib : ev.wid;
+             hpStr += `[<span style="color:var(--cy)">${vType}</span>] a:${ev.ia} b:${vB} t:${ev.tc.toFixed(4)}<br>`;
+          }
+          if(this.engine.heap.size > maxHpShow) hpStr += `<span style="color:var(--t3)">+ ${this.engine.heap.size - maxHpShow} more...</span><br>`;
+          hpEl.innerHTML = hpStr;
+
+          if(this.engine.lastLCP && this.engine.lastLCP.k > 0) {
+            const lcp = this.engine.lastLCP;
+            let lcpStr = `<span style="color:var(--t2)">LCP Matrix (${lcp.k}x${lcp.k})</span><br>`;
+            lcpStr += `<span style="color:var(--cy)">`
+            for(let r=0; r<lcp.k; r++){
+              let rowStr = "";
+              for(let c=0; c<lcp.k; c++){
+                rowStr += lcp.M[r*lcp.k + c].toFixed(2).padStart(6, '\xa0') + ' ';
+              }
+              lcpStr += rowStr + '<br>';
+            }
+            lcpStr += `</span><span style="color:var(--t2)">RHS / P Vectors</span><br>`;
+            for(let i=0; i<lcp.k; i++){
+               lcpStr += `<span style="color:var(--ok)">rhs[${i}]:</span> ${lcp.rhs[i].toFixed(4).padStart(8, '\xa0')} | <span style="color:var(--vi)">P[${i}]:</span> ${lcp.P[i].toFixed(4).padStart(8, '\xa0')}<br>`;
+            }
+            lcpEl.innerHTML = lcpStr;
+          } else {
+            lcpEl.innerHTML = '<span style="color:var(--t3)">No LCP Activity</span>';
+          }
+        }
       }
 
       _loop() {
