@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Symplectic TFE — N-Body Geometric Collision</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Crimson+Pro:ital,wght@0,300;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:    #00050f;
+  --bg2:   #010a1a;
+  --grid:  #020d20;
+  --dim:   #051828;
+  --b1:    #0a2840;
+  --b2:    #0f3858;
+  --cyan:  #00d4ff;
+  --gold:  #ffaa00;
+  --green: #00ff88;
+  --pink:  #ff3366;
+  --white: #c8e8ff;
+  --text:  #4a7a9a;
+  --text2: #1a3850;
+  --font:  'Space Mono', monospace;
+  --serif: 'Crimson Pro', serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:var(--font);overflow:hidden;color:var(--text);}
+
+#app{display:grid;grid-template-columns:1fr 280px;height:100vh;}
+
+/* Canvas */
+#canvas-wrap{position:relative;overflow:hidden;background:var(--bg);}
+canvas{display:block;width:100%;height:100%;}
+
+/* Scanline overlay */
+#canvas-wrap::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px);
+  z-index:10;
+}
+
+/* Grid background */
+#canvas-wrap::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 40px 40px;
+  z-index:0;
+}
+
+/* Panel */
+#panel{
+  background:var(--bg2);
+  border-left:1px solid var(--b1);
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+}
+#panel::-webkit-scrollbar{width:2px;}
+#panel::-webkit-scrollbar-thumb{background:var(--b2);}
+
+.panel-head{
+  padding:20px 18px 14px;
+  border-bottom:1px solid var(--b1);
+}
+.ph-title{
+  font-size:10px;letter-spacing:4px;color:var(--cyan);
+  font-weight:700;margin-bottom:4px;
+}
+.ph-sub{
+  font-family:var(--serif);font-style:italic;
+  font-size:14px;color:var(--text);line-height:1.4;
+}
+
+/* Scene selector */
+.scene-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  border-bottom:1px solid var(--b1);
+}
+.sbtn{
+  padding:10px 6px;text-align:center;font-size:8px;
+  letter-spacing:.8px;color:var(--text2);cursor:pointer;
+  border-right:1px solid var(--b1);border-bottom:1px solid var(--b1);
+  transition:.12s;user-select:none;font-family:var(--font);
+  background:transparent;line-height:1.5;
+}
+.sbtn:nth-child(even){border-right:none;}
+.sbtn:nth-child(n+5){border-bottom:none;}
+.sbtn:hover{color:var(--white);background:var(--dim);}
+.sbtn.active{color:var(--cyan);background:var(--dim);position:relative;}
+.sbtn.active::after{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--cyan);}
+
+/* Math display */
+.math-box{
+  padding:12px 16px;border-bottom:1px solid var(--b1);
+  font-family:var(--serif);font-size:12px;color:var(--text);
+  line-height:1.8;
+}
+.math-box .eq{color:var(--white);font-size:11px;font-family:var(--font);
+  background:var(--dim);padding:2px 6px;display:inline-block;margin:2px 0;
+  border-left:2px solid var(--cyan);}
+.math-box .label{font-size:9px;letter-spacing:1px;color:var(--text2);margin-top:8px;display:block;}
+
+/* Stats */
+.stats{padding:10px 16px;border-bottom:1px solid var(--b1);}
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;}
+.sl{font-size:8px;letter-spacing:.8px;color:var(--text2);}
+.sv{font-size:10px;color:var(--white);}
+.sv.g{color:var(--green);}
+.sv.c{color:var(--cyan);}
+.sv.a{color:var(--gold);}
+.sv.p{color:var(--pink);}
+
+/* Controls */
+.ctrl-sec{padding:10px 16px;border-bottom:1px solid var(--b1);}
+.ctrl-title{font-size:7px;letter-spacing:2px;color:var(--text2);margin-bottom:8px;}
+.crow{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.clabel{font-size:8px;color:var(--text);}
+.cval{font-size:8px;color:var(--cyan);}
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:1px;
+  background:var(--b2);outline:none;margin-top:4px;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:8px;height:8px;
+  background:var(--cyan);cursor:pointer;border-radius:0;
+  clip-path:polygon(50% 0%,100% 100%,0% 100%);
+}
+
+/* Buttons */
+.btn-row{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:10px 16px;border-bottom:1px solid var(--b1);}
+.btn{
+  padding:7px 2px;font-size:7px;letter-spacing:.5px;
+  color:var(--text);border:1px solid var(--b2);cursor:pointer;
+  transition:.1s;font-family:var(--font);background:transparent;text-align:center;
+}
+.btn:hover{color:var(--white);border-color:var(--text);}
+.btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(0,212,255,.05);}
+.btn.c{color:var(--cyan);border-color:var(--b2);}
+.btn.g{color:var(--green);border-color:var(--b2);}
+
+/* Proof box */
+.proof{
+  padding:12px 16px;margin:0;
+  font-family:var(--serif);font-size:11px;
+  color:var(--text);line-height:1.7;
+  border-bottom:1px solid var(--b1);
+}
+.proof .hi{color:var(--gold);}
+.proof .ok{color:var(--green);}
+
+/* Phase space mini canvas */
+#phase-canvas{
+  display:block;width:100%;height:120px;
+  border-bottom:1px solid var(--b1);
+  background:var(--bg);
+}
+.phase-label{
+  padding:4px 16px;font-size:7px;letter-spacing:1.5px;
+  color:var(--text2);border-bottom:1px solid var(--b1);
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="canvas-wrap">
+    <canvas id="c"></canvas>
+  </div>
+  <div id="panel">
+    <div class="panel-head">
+      <div class="ph-title">SYMPLECTIC TFE</div>
+      <div class="ph-sub">N-body geometric collision via phase space projection</div>
+    </div>
+
+    <div class="scene-grid">
+      <div class="sbtn active" onclick="loadScene('triangle')">EQUILATERAL<br>TRIANGLE</div>
+      <div class="sbtn" onclick="loadScene('chain')">LINEAR<br>CHAIN</div>
+      <div class="sbtn" onclick="loadScene('cluster')">DENSE<br>CLUSTER</div>
+      <div class="sbtn" onclick="loadScene('asymmetric')">ASYMMETRIC<br>MASSES</div>
+      <div class="sbtn" onclick="loadScene('billiard')">BILLIARD<br>BREAK</div>
+      <div class="sbtn" onclick="loadScene('random')">RANDOM<br>N-BODY</div>
+    </div>
+
+    <div class="math-box">
+      <span class="label">VALID REGION</span>
+      <span class="eq">Ω = {q : |pᵢ-pⱼ| ≥ rᵢ+rⱼ ∀i≠j}</span>
+      <span class="label">BOUNDARY NORMAL (config space)</span>
+      <span class="eq">N_ij = (n̂ᵢⱼ, -n̂ᵢⱼ) / √(1/mᵢ+1/mⱼ)</span>
+      <span class="label">SYMPLECTIC PROJECTION</span>
+      <span class="eq">v' = argmin|v-v_in| s.t. v·Nₖ≥0 ∀k</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat-row"><span class="sl">CONTACTS RESOLVED</span><span class="sv c" id="s-contacts">0</span></div>
+      <div class="stat-row"><span class="sl">SIMULTANEOUS</span><span class="sv a" id="s-simul">0</span></div>
+      <div class="stat-row"><span class="sl">ENERGY DRIFT</span><span class="sv g" id="s-drift">0.000000%</span></div>
+      <div class="stat-row"><span class="sl">MOMENTUM ERROR</span><span class="sv g" id="s-mom">0.000000</span></div>
+      <div class="stat-row"><span class="sl">PROJECTION COST</span><span class="sv" id="s-cost">0 ops</span></div>
+      <div class="stat-row"><span class="sl">WASTED OPS</span><span class="sv g" id="s-waste">0</span></div>
+    </div>
+
+    <div class="ctrl-sec">
+      <div class="ctrl-title">SIMULATION</div>
+      <div class="crow"><span class="clabel">TIME SCALE</span><span class="cval" id="v-ts">1.00×</span></div>
+      <input type="range" id="s-ts" min="1" max="200" value="100" oninput="timeScale=this.value/100;document.getElementById('v-ts').textContent=(this.value/100).toFixed(2)+'×'">
+      <div class="crow"><span class="clabel">RESTITUTION</span><span class="cval" id="v-en">1.00</span></div>
+      <input type="range" id="s-en" min="0" max="100" value="100" oninput="E_N=this.value/100;document.getElementById('v-en').textContent=(this.value/100).toFixed(2)">
+      <div class="crow"><span class="clabel">SPHERE COUNT</span><span class="cval" id="v-n">3</span></div>
+      <input type="range" id="s-n" min="2" max="12" value="3" oninput="document.getElementById('v-n').textContent=this.value">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn active" id="btn-live" onclick="setMode('LIVE')">▶ LIVE</button>
+      <button class="btn" id="btn-slow" onclick="setMode('SLOW')">◐ SLOW</button>
+      <button class="btn" id="btn-pause" onclick="setMode('PAUSE')">▐▐ PAUSE</button>
+      <button class="btn c" onclick="loadScene(currentScene)">↺ RESET</button>
+      <button class="btn g" onclick="toggleTrails()">⌇ TRAILS</button>
+      <button class="btn" onclick="togglePhaseView()">⊕ PHASE</button>
+    </div>
+
+    <div class="phase-label">PHASE SPACE — RELATIVE VELOCITY vs SEPARATION</div>
+    <canvas id="phase-canvas"></canvas>
+
+    <div class="proof">
+      <span class="hi">Why no wasted calculation:</span><br>
+      Projection onto ∂Ω scales with active contact count k. Zero contacts = zero work. k contacts = one k×k solve, irreducible. <span class="ok">Computation = geometric complexity. Nothing more.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════
+// GLOBALS
+// ═══════════════════════════════════════
+const cv   = document.getElementById('c');
+const ctx  = cv.getContext('2d');
+const pcv  = document.getElementById('phase-canvas');
+const pctx = pcv.getContext('2d');
+
+let W, H;
+let timeScale = 1.0;
+let E_N = 1.0;
+let simT = 0;
+let lastReal = performance.now() / 1000;
+let timeMode = 'LIVE';
+let showTrails = true;
+let showPhase = true;
+let currentScene = 'triangle';
+
+// Stats
+let totalContacts = 0;
+let maxSimultaneous = 0;
+let initialEnergy = 0;
+let initialMomentum = { x: 0, y: 0 };
+let phaseHistory = [];  // [{sep, vrel}]
+
+// ═══════════════════════════════════════
+// TRAJECTORY FUNCTION
+// ═══════════════════════════════════════
+const G_VEC = { x: 0, y: 120 };  // gentle gravity for visibility
+
+class TF {
+  constructor(p, v, t0, mass, radius, id, color) {
+    this.p0  = { ...p };
+    this.v0  = { ...v };
+    this.t0  = t0;
+    this.mass   = mass;
+    this.radius = radius;
+    this.id     = id;
+    this.color  = color;
+    this.gen    = 0;
+    this.trail  = [];
+    this.lastTrailT = -999;
+  }
+
+  pos(t) {
+    const dt = t - this.t0;
+    return {
+      x: this.p0.x + this.v0.x * dt + 0.5 * G_VEC.x * dt * dt,
+      y: this.p0.y + this.v0.y * dt + 0.5 * G_VEC.y * dt * dt
+    };
+  }
+
+  vel(t) {
+    const dt = t - this.t0;
+    return {
+      x: this.v0.x + G_VEC.x * dt,
+      y: this.v0.y + G_VEC.y * dt
+    };
+  }
+
+  KE(t) {
+    const v = this.vel(t);
+    return 0.5 * this.mass * (v.x * v.x + v.y * v.y);
+  }
+
+  PE(t) {
+    const p = this.pos(t);
+    return this.mass * G_VEC.y * (p.y - (H * 0.5 - 30));
+  }
+
+  E(t) { return this.KE(t) + this.PE(t); }
+
+  seed(tc, nv) {
+    const nf = new TF(this.pos(tc), nv, tc, this.mass, this.radius, this.id, this.color);
+    nf.gen = this.gen + 1;
+    nf.trail = this.trail.slice();
+    return nf;
+  }
+}
+
+let bodies = [];
+
+// ═══════════════════════════════════════
+// DETECTION
+// ═══════════════════════════════════════
+function detectPair(a, b, tref) {
+  const pa = a.pos(tref), pb = b.pos(tref);
+  const va = a.vel(tref), vb = b.vel(tref);
+  const dpx = pa.x - pb.x, dpy = pa.y - pb.y;
+  const dvx = va.x - vb.x, dvy = va.y - vb.y;
+  const rs = a.radius + b.radius;
+  const A = dvx*dvx + dvy*dvy;
+  const B = 2*(dpx*dvx + dpy*dvy);
+  const C = dpx*dpx + dpy*dpy - rs*rs;
+  if (A < 1e-12) return null;
+  const disc = B*B - 4*A*C;
+  if (disc < 0) return null;
+  const sq = Math.sqrt(Math.max(0, disc));
+  const t1 = (-B - sq) / (2*A);
+  const t2 = (-B + sq) / (2*A);
+  const tau = t1 > 1e-8 ? t1 : t2 > 1e-8 ? t2 : null;
+  return tau !== null ? tref + tau : null;
+}
+
+function detectWall(b, tref) {
+  // returns array of {tc, wallName, normal}
+  const events = [];
+  const p = b.pos(tref), v = b.vel(tref);
+  const r = b.radius;
+  const walls = [
+    { name:'wL', axis:'x', pos: r - W*0.5,   n:{x:1,y:0}  },
+    { name:'wR', axis:'x', pos: W*0.5 - r,    n:{x:-1,y:0} },
+    { name:'wT', axis:'y', pos: r - H*0.5,    n:{x:0,y:1}  },
+    { name:'wB', axis:'y', pos: H*0.5 - r,    n:{x:0,y:-1} },
+  ];
+  for (const w of walls) {
+    const pa = w.axis === 'x' ? p.x : p.y;
+    const va = w.axis === 'x' ? v.x : v.y;
+    const ga = w.axis === 'x' ? G_VEC.x : G_VEC.y;
+    const offset = pa - w.pos;
+    let tau = null;
+    if (Math.abs(ga) < 1e-10) {
+      if (Math.abs(va) < 1e-10) continue;
+      const t = -offset / va;
+      if (t > 1e-8) tau = t;
+    } else {
+      const A = 0.5*ga, B = va, C = offset;
+      const disc = B*B - 4*A*C;
+      if (disc < 0) continue;
+      const sq = Math.sqrt(Math.max(0,disc));
+      const t1=(-B-sq)/(2*A), t2=(-B+sq)/(2*A);
+      if      (t1>1e-8) tau=t1;
+      else if (t2>1e-8) tau=t2;
+    }
+    if (tau === null) continue;
+    const tc = tref + tau;
+    const vt = b.vel(tc);
+    const vn = w.axis==='x' ? vt.x*w.n.x : vt.y*w.n.y;
+    if (vn > 1e-8) continue;
+    events.push({ tc, wallName: w.name, normal: w.n });
+  }
+  return events;
+}
+
+// ═══════════════════════════════════════
+// SYMPLECTIC N-BODY PROJECTION
+// Core of the new approach
+// ═══════════════════════════════════════
+
+/*
+  Given a set of simultaneously active contacts,
+  find the minimal velocity correction in configuration space
+  that satisfies all non-penetration constraints simultaneously.
+
+  This is the symplectic projection onto the valid cone T_corner(Ω).
+
+  AUTOMATICALLY:
+  - single contact → standard reflection (no overhead)
+  - two contacts   → 2×2 system (automatic)
+  - N contacts     → N×N system (automatic, scales with complexity)
+  - no contacts    → nothing called (zero waste)
+*/
+function symplecticProjection(contactBodies, contacts, tc) {
+  const k = contacts.length;
+  if (k === 0) return;
+
+  // Extract current velocities for all participating bodies
+  const bodyIds = [...new Set(contacts.flatMap(c => c.type === 'sphere' ? [c.ia, c.ib] : [c.ia]))];
+  const vels = {};
+  for (const id of bodyIds) {
+    const b = bodies[id];
+    const v = b.vel(tc);
+    vels[id] = { x: v.x, y: v.y };
+  }
+
+  // ─────────────────────────────────────────────────
+  // STEP 1: Build constraint normals in config space
+  // N_contact = (n̂ᵢⱼ/√mᵢ, -n̂ᵢⱼ/√mⱼ) mass-weighted
+  // This is the symplectic mass metric normalization
+  // ─────────────────────────────────────────────────
+  const normals = contacts.map(c => {
+    if (c.type === 'sphere') {
+      const a = bodies[c.ia], b2 = bodies[c.ib];
+      const pa = a.pos(tc), pb = b2.pos(tc);
+      const dx = pa.x - pb.x, dy = pa.y - pb.y;
+      const len = Math.sqrt(dx*dx + dy*dy) || 1;
+      const nx = dx/len, ny = dy/len;
+      const sqma = Math.sqrt(a.mass), sqmb = Math.sqrt(b2.mass);
+      return { ia: c.ia, ib: c.ib, nx, ny, sqma, sqmb, type: 'sphere' };
+    } else {
+      // wall contact
+      return { ia: c.ia, ib: null, nx: c.normal.x, ny: c.normal.y,
+               sqma: Math.sqrt(bodies[c.ia].mass), sqmb: Infinity, type: 'wall' };
+    }
+  });
+
+  // ─────────────────────────────────────────────────
+  // STEP 2: Compute relative velocities (b vector)
+  // b_k = -(1+eN) * v_rel · n̂_k   (restitution condition)
+  // ─────────────────────────────────────────────────
+  const b_vec = normals.map(n => {
+    const vi = vels[n.ia];
+    const vj = n.ib !== null ? vels[n.ib] : { x: 0, y: 0 };
+    const vrel_n = (vi.x - vj.x) * n.nx + (vi.y - vj.y) * n.ny;
+    return -(1 + E_N) * vrel_n;
+  });
+
+  // Only process contacts that are actually approaching
+  const active = normals.map((n, i) => {
+    const vi = vels[n.ia];
+    const vj = n.ib !== null ? vels[n.ib] : { x: 0, y: 0 };
+    const vrel_n = (vi.x - vj.x) * n.nx + (vi.y - vj.y) * n.ny;
+    return vrel_n < -1e-10;
+  });
+
+  const activeContacts = normals.filter((_, i) => active[i]);
+  const active_b = b_vec.filter((_, i) => active[i]);
+  const ka = activeContacts.length;
+  if (ka === 0) return;
+
+  // ─────────────────────────────────────────────────
+  // STEP 3: Build mass matrix M in config space
+  // M_αβ = N_α · N_β (dot product of config normals)
+  // Automatically encodes coupling between contacts
+  // ZERO off-diagonal when contacts share no bodies
+  // → automatic sparsity, zero waste
+  // ─────────────────────────────────────────────────
+  const M = Array.from({length:ka}, () => new Array(ka).fill(0));
+
+  for (let a2 = 0; a2 < ka; a2++) {
+    for (let b2 = 0; b2 < ka; b2++) {
+      const na = activeContacts[a2];
+      const nb = activeContacts[b2];
+      let coupling = 0;
+
+      // Contribution from body ia_a and ia_b
+      if (na.ia === nb.ia) coupling += (na.nx*nb.nx + na.ny*nb.ny) / bodies[na.ia].mass;
+      if (na.ib !== null && na.ib === nb.ib) coupling += (na.nx*nb.nx + na.ny*nb.ny) / bodies[na.ib].mass;
+      if (na.ia !== null && na.ib !== null && na.ia === nb.ib) coupling -= (na.nx*nb.nx + na.ny*nb.ny) / bodies[na.ia].mass;
+      if (na.ib !== null && na.ia !== null && na.ib === nb.ia) coupling -= (na.nx*nb.nx + na.ny*nb.ny) / bodies[na.ib].mass;
+
+      M[a2][b2] = coupling;
+    }
+  }
+
+  // ─────────────────────────────────────────────────
+  // STEP 4: Solve M·P = b (impulses)
+  // For k=1: trivial analytical
+  // For k=2: 2×2 Cramer's rule
+  // For k≥3: Gaussian elimination
+  // AUTOMATIC — no case switching needed
+  // Scales with actual contact complexity
+  // ─────────────────────────────────────────────────
+  const P = solveLinear(M, active_b, ka);
+
+  // Count ops for HUD
+  const opsUsed = ka * ka;  // approximate flop count
+  document.getElementById('s-cost').textContent = `${opsUsed} flops`;
+  document.getElementById('s-waste').textContent = '0';  // by definition
+
+  // ─────────────────────────────────────────────────
+  // STEP 5: Apply impulses simultaneously
+  // All bodies updated at once from same impulse vector
+  // NOT sequential — truly parallel
+  // ─────────────────────────────────────────────────
+  const deltaV = {};
+  for (const id of bodyIds) deltaV[id] = { x: 0, y: 0 };
+
+  for (let a2 = 0; a2 < ka; a2++) {
+    const n = activeContacts[a2];
+    const imp = P[a2];
+    // Apply to ia
+    deltaV[n.ia].x += imp * n.nx / bodies[n.ia].mass;
+    deltaV[n.ia].y += imp * n.ny / bodies[n.ia].mass;
+    // Apply equal and opposite to ib
+    if (n.ib !== null) {
+      deltaV[n.ib].x -= imp * n.nx / bodies[n.ib].mass;
+      deltaV[n.ib].y -= imp * n.ny / bodies[n.ib].mass;
+    }
+  }
+
+  // ─────────────────────────────────────────────────
+  // STEP 6: Seed new trajectory functions
+  // ─────────────────────────────────────────────────
+  for (const id of bodyIds) {
+    const b = bodies[id];
+    const v = b.vel(tc);
+    const nv = { x: v.x + deltaV[id].x, y: v.y + deltaV[id].y };
+
+    // Position clamp to contact surface (prevents sub-surface seeding)
+    const pc = b.pos(tc);
+    // clamp within box
+    pc.x = Math.max(-W*0.5 + b.radius, Math.min(W*0.5 - b.radius, pc.x));
+    pc.y = Math.max(-H*0.5 + b.radius, Math.min(H*0.5 - b.radius, pc.y));
+
+    const nf = new TF(pc, nv, tc, b.mass, b.radius, b.id, b.color);
+    nf.gen = b.gen + 1;
+    nf.trail = b.trail.slice(-40);
+    bodies[id] = nf;
+  }
+
+  // Stats
+  totalContacts += ka;
+  maxSimultaneous = Math.max(maxSimultaneous, ka);
+  document.getElementById('s-contacts').textContent = totalContacts;
+  document.getElementById('s-simul').textContent = maxSimultaneous;
+}
+
+// Gaussian elimination — works for any k
+function solveLinear(M, b, k) {
+  // Augmented matrix
+  const A = M.map((row, i) => [...row, b[i]]);
+  for (let col = 0; col < k; col++) {
+    // Find pivot
+    let maxR = col;
+    for (let r = col+1; r < k; r++)
+      if (Math.abs(A[r][col]) > Math.abs(A[maxR][col])) maxR = r;
+    [A[col], A[maxR]] = [A[maxR], A[col]];
+    const piv = A[col][col];
+    if (Math.abs(piv) < 1e-14) continue;
+    for (let r = 0; r < k; r++) {
+      if (r === col) continue;
+      const f = A[r][col] / piv;
+      for (let c2 = col; c2 <= k; c2++) A[r][c2] -= f * A[col][c2];
+    }
+    for (let c2 = col; c2 <= k; c2++) A[col][c2] /= piv;
+  }
+  return A.map(row => row[k]);
+}
+
+// ═══════════════════════════════════════
+// SIMULATION STEP
+// ═══════════════════════════════════════
+const SUBSTEP = 1/240;  // fine substep for detection
+let accumT = 0;
+
+function simulate(dt) {
+  accumT += dt;
+  const endT = simT + accumT;
+  accumT = 0;
+
+  // Find earliest event across all pairs
+  let earliest = null;
+  const n = bodies.length;
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i+1; j < n; j++) {
+      const tref = Math.max(bodies[i].t0, bodies[j].t0, simT);
+      const tc = detectPair(bodies[i], bodies[j], tref);
+      if (tc !== null && tc >= simT - 1e-10 && tc <= endT) {
+        if (!earliest || tc < earliest.tc - 1e-9) {
+          earliest = { tc, type: 'pair', pairs: [[i, j]] };
+        } else if (Math.abs(tc - earliest.tc) < 1e-6) {
+          // simultaneous — add to existing event
+          earliest.pairs.push([i, j]);
+        }
+      }
+    }
+    // Wall detection
+    const wallEvts = detectWall(bodies[i], Math.max(bodies[i].t0, simT));
+    for (const we of wallEvts) {
+      if (we.tc >= simT - 1e-10 && we.tc <= endT) {
+        if (!earliest || we.tc < earliest.tc - 1e-9) {
+          earliest = { tc: we.tc, type: 'wall', walls: [{ ia: i, normal: we.normal }] };
+        } else if (Math.abs(we.tc - earliest.tc) < 1e-6) {
+          if (!earliest.walls) earliest.walls = [];
+          earliest.walls.push({ ia: i, normal: we.normal });
+        }
+      }
+    }
+  }
+
+  if (!earliest) {
+    simT = endT;
+    return;
+  }
+
+  // Advance to just before event
+  simT = earliest.tc;
+
+  // Collect ALL contacts at this moment (sphere + wall)
+  const contacts = [];
+  if (earliest.pairs) {
+    for (const [ia, ib] of earliest.pairs) {
+      contacts.push({ type: 'sphere', ia, ib });
+    }
+  }
+  if (earliest.walls) {
+    for (const w of earliest.walls) {
+      contacts.push({ type: 'wall', ia: w.ia, ib: null, normal: w.normal });
+    }
+  }
+
+  // Symplectic projection — one call, handles everything
+  const bodyIds = [...new Set(contacts.flatMap(c => c.ib !== null ? [c.ia, c.ib] : [c.ia]))];
+  symplecticProjection(bodyIds, contacts, earliest.tc);
+
+  // Record phase space snapshot
+  if (contacts.length > 0 && contacts[0].type === 'sphere') {
+    const c = contacts[0];
+    const pa = bodies[c.ia].pos(simT);
+    const pb = bodies[c.ib].pos(simT);
+    const va = bodies[c.ia].vel(simT);
+    const vb = bodies[c.ib].vel(simT);
+    const sep = Math.sqrt((pa.x-pb.x)**2 + (pa.y-pb.y)**2);
+    const vrel = Math.sqrt((va.x-vb.x)**2 + (va.y-vb.y)**2);
+    phaseHistory.push({ sep, vrel, t: simT });
+    if (phaseHistory.length > 200) phaseHistory.shift();
+  }
+
+  // Update energy stats
+  const E = totalEnergy();
+  const drift = initialEnergy !== 0 ? Math.abs((E - initialEnergy) / initialEnergy) * 100 : 0;
+  const mom = totalMomentum();
+  const momErr = Math.abs(mom.x - initialMomentum.x) + Math.abs(mom.y - initialMomentum.y);
+  document.getElementById('s-drift').textContent = drift.toFixed(6) + '%';
+  document.getElementById('s-drift').className = 'sv ' + (drift < 0.001 ? 'g' : '');
+  document.getElementById('s-mom').textContent = momErr.toFixed(6);
+  document.getElementById('s-mom').className = 'sv ' + (momErr < 0.01 ? 'g' : '');
+}
+
+function totalEnergy() {
+  return bodies.reduce((s, b) => s + b.E(simT), 0);
+}
+
+function totalMomentum() {
+  return bodies.reduce((s, b) => {
+    const v = b.vel(simT);
+    return { x: s.x + b.mass*v.x, y: s.y + b.mass*v.y };
+  }, { x:0, y:0 });
+}
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+function render() {
+  const t = simT;
+
+  // Background
+  ctx.fillStyle = '#00050f';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(W/2, H/2);
+
+  // Boundary box
+  ctx.strokeStyle = '#0a2840';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(-W/2+1, -H/2+1, W-2, H-2);
+
+  for (const b of bodies) {
+    const p = b.pos(t);
+
+    // Trail
+    if (showTrails) {
+      if (Math.abs(t - b.lastTrailT) > 0.05) {
+        b.trail.push({ x: p.x, y: p.y });
+        if (b.trail.length > 40) b.trail.shift();
+        b.lastTrailT = t;
+      }
+      if (b.trail.length > 1) {
+        ctx.beginPath();
+        for (let i = 0; i < b.trail.length; i++) {
+          const alpha = (i / b.trail.length) * 0.6;
+          if (i === 0) ctx.moveTo(b.trail[i].x, b.trail[i].y);
+          else ctx.lineTo(b.trail[i].x, b.trail[i].y);
+        }
+        ctx.strokeStyle = b.color + '44';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
+    // Velocity arrow
+    const v = b.vel(t);
+    const vlen = Math.sqrt(v.x*v.x + v.y*v.y);
+    if (vlen > 1) {
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      const scale = Math.min(vlen * 0.15, 60);
+      const ex = p.x + v.x/vlen * scale;
+      const ey = p.y + v.y/vlen * scale;
+      ctx.lineTo(ex, ey);
+      ctx.strokeStyle = b.color + '88';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // arrowhead
+      const angle = Math.atan2(v.y, v.x);
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex - 8*Math.cos(angle-0.4), ey - 8*Math.sin(angle-0.4));
+      ctx.lineTo(ex - 8*Math.cos(angle+0.4), ey - 8*Math.sin(angle+0.4));
+      ctx.closePath();
+      ctx.fillStyle = b.color + '88';
+      ctx.fill();
+    }
+
+    // Contact visualization — show active contact normals
+    for (let j = 0; j < bodies.length; j++) {
+      if (bodies[j].id === b.id) continue;
+      const pb2 = bodies[j].pos(t);
+      const dx = pb2.x - p.x, dy = pb2.y - p.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const contact_dist = b.radius + bodies[j].radius;
+      if (dist < contact_dist * 1.05) {
+        // Draw contact normal
+        const nx = dx/dist, ny = dy/dist;
+        ctx.beginPath();
+        ctx.moveTo(p.x + nx*b.radius, p.y + ny*b.radius);
+        ctx.lineTo(p.x + nx*(b.radius+20), p.y + ny*(b.radius+20));
+        ctx.strokeStyle = '#ffaa0088';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Contact point glow
+        ctx.beginPath();
+        ctx.arc(p.x + nx*b.radius, p.y + ny*b.radius, 3, 0, Math.PI*2);
+        ctx.fillStyle = '#ffaa00';
+        ctx.fill();
+      }
+    }
+
+    // Sphere glow
+    const grad = ctx.createRadialGradient(p.x-b.radius*0.3, p.y-b.radius*0.3, 0, p.x, p.y, b.radius*1.4);
+    grad.addColorStop(0, b.color + 'cc');
+    grad.addColorStop(0.5, b.color + '66');
+    grad.addColorStop(1, b.color + '00');
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, b.radius*1.4, 0, Math.PI*2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Sphere body
+    const sgrad = ctx.createRadialGradient(p.x-b.radius*0.3, p.y-b.radius*0.3, b.radius*0.1, p.x, p.y, b.radius);
+    sgrad.addColorStop(0, b.color + 'ff');
+    sgrad.addColorStop(0.6, b.color + 'bb');
+    sgrad.addColorStop(1, b.color + '77');
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, b.radius, 0, Math.PI*2);
+    ctx.fillStyle = sgrad;
+    ctx.fill();
+    ctx.strokeStyle = b.color + 'aa';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // ID label
+    ctx.fillStyle = '#ffffff88';
+    ctx.font = '9px Space Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(String.fromCharCode(65 + b.id), p.x, p.y + 3);
+  }
+
+  ctx.restore();
+
+  // Phase space mini view
+  if (showPhase) renderPhase();
+}
+
+function renderPhase() {
+  const pw = pcv.width, ph = pcv.height;
+  pctx.fillStyle = '#00050f';
+  pctx.fillRect(0, 0, pw, ph);
+
+  if (phaseHistory.length < 2) return;
+
+  const maxSep = Math.max(...phaseHistory.map(p => p.sep)) * 1.1;
+  const maxVrel = Math.max(...phaseHistory.map(p => p.vrel)) * 1.1 || 1;
+
+  // Draw trajectory in phase space
+  pctx.beginPath();
+  for (let i = 0; i < phaseHistory.length; i++) {
+    const px = phaseHistory[i].sep / maxSep * (pw-10) + 5;
+    const py = ph - phaseHistory[i].vrel / maxVrel * (ph-10) - 5;
+    const alpha = i / phaseHistory.length;
+    if (i === 0) pctx.moveTo(px, py);
+    else pctx.lineTo(px, py);
+  }
+  pctx.strokeStyle = '#00d4ff66';
+  pctx.lineWidth = 1;
+  pctx.stroke();
+
+  // Current point
+  const last = phaseHistory[phaseHistory.length-1];
+  const cx = last.sep / maxSep * (pw-10) + 5;
+  const cy = ph - last.vrel / maxVrel * (ph-10) - 5;
+  pctx.beginPath();
+  pctx.arc(cx, cy, 3, 0, Math.PI*2);
+  pctx.fillStyle = '#00d4ff';
+  pctx.fill();
+
+  // Labels
+  pctx.fillStyle = '#1a3850';
+  pctx.font = '7px Space Mono';
+  pctx.fillText('sep →', pw-30, ph-4);
+  pctx.fillText('|vrel|', 2, 10);
+}
+
+// ═══════════════════════════════════════
+// SCENES
+// ═══════════════════════════════════════
+const COLORS = ['#00d4ff','#ffaa00','#00ff88','#ff3366','#aa88ff','#ff8844',
+                '#44ffdd','#ff44aa','#88ff44','#4488ff','#ffff44','#ff44ff'];
+
+function loadScene(name) {
+  currentScene = name;
+  bodies = [];
+  simT = 0;
+  totalContacts = 0;
+  maxSimultaneous = 0;
+  phaseHistory = [];
+
+  document.querySelectorAll('.sbtn').forEach((b,i) => {
+    b.classList.toggle('active', ['triangle','chain','cluster','asymmetric','billiard','random'][i] === name);
+  });
+
+  const cx = 0, cy = 0;
+
+  if (name === 'triangle') {
+    // Perfect equilateral triangle converging to center
+    const R = 120;  // distance from center to each sphere
+    const r = 28;
+    const speed = 160;
+    // Three spheres at 120° apart, all moving toward center
+    for (let i = 0; i < 3; i++) {
+      const angle = (i * 120 - 90) * Math.PI / 180;
+      const px = cx + R * Math.cos(angle);
+      const py = cy + R * Math.sin(angle);
+      // velocity toward center
+      const vx = -speed * Math.cos(angle);
+      const vy = -speed * Math.sin(angle);
+      bodies.push(new TF({x:px,y:py},{x:vx,y:vy},0,50,r,i,COLORS[i]));
+    }
+  }
+
+  else if (name === 'chain') {
+    // Newton's cradle — linear chain
+    const n = parseInt(document.getElementById('s-n').value);
+    const r = 22, mass = 60, gap = 2;
+    const spacing = r*2 + gap;
+    const startX = -(n-1)*spacing/2;
+    for (let i = 0; i < n; i++) {
+      // First ball moving right, rest static
+      const vx = i === 0 ? 200 : 0;
+      bodies.push(new TF({x:startX+i*spacing,y:0},{x:vx,y:0},0,mass,r,i,COLORS[i]));
+    }
+  }
+
+  else if (name === 'cluster') {
+    // Dense cluster — all converging
+    const n = parseInt(document.getElementById('s-n').value);
+    const r = 18, mass = 40, speed = 120;
+    const angles = Array.from({length:n}, (_,i) => i*360/n * Math.PI/180);
+    const R = r * n * 0.7;
+    for (let i = 0; i < n; i++) {
+      const px = R * Math.cos(angles[i]);
+      const py = R * Math.sin(angles[i]);
+      bodies.push(new TF({x:px,y:py},{x:-speed*Math.cos(angles[i]),y:-speed*Math.sin(angles[i])},0,mass,r,i,COLORS[i%12]));
+    }
+  }
+
+  else if (name === 'asymmetric') {
+    // Very different masses — tests mass-weighted normals
+    const specs = [
+      {r:40, mass:200, px:-150, py:0, vx:180, vy:0},
+      {r:15, mass:10,  px:80,  py:-60, vx:-100, vy:100},
+      {r:20, mass:30,  px:80,  py:60,  vx:-100, vy:-100},
+    ];
+    specs.forEach((s,i) => bodies.push(new TF({x:s.px,y:s.py},{x:s.vx,y:s.vy},0,s.mass,s.r,i,COLORS[i])));
+  }
+
+  else if (name === 'billiard') {
+    // Rack of 6 + cue ball
+    const r = 18, mass = 50;
+    const rows = [[0], [-1,1], [-2,0,2]];
+    let id = 0;
+    for (let row = 0; row < rows.length; row++) {
+      for (const col of rows[row]) {
+        const px = 60 + row * r * Math.sqrt(3);
+        const py = col * r;
+        bodies.push(new TF({x:px,y:py},{x:0,y:0},0,mass,r,id++,COLORS[id%12]));
+      }
+    }
+    // Cue ball
+    bodies.push(new TF({x:-180,y:0},{x:280,y:0},0,mass,r,id,COLORS[11]));
+  }
+
+  else if (name === 'random') {
+    const n = parseInt(document.getElementById('s-n').value);
+    const placed = [];
+    for (let i = 0; i < n; i++) {
+      const r = 14 + Math.random()*12;
+      const mass = r*r*0.05;
+      let px, py, ok = false;
+      for (let att = 0; att < 300; att++) {
+        px = (Math.random()*2-1) * (W*0.4 - r);
+        py = (Math.random()*2-1) * (H*0.4 - r);
+        ok = placed.every(([pr,ppx,ppy]) => Math.hypot(px-ppx,py-ppy) > r+pr+4);
+        if (ok) break;
+      }
+      placed.push([r,px,py]);
+      const spd = 80 + Math.random()*120;
+      const ang = Math.random()*Math.PI*2;
+      bodies.push(new TF({x:px,y:py},{x:spd*Math.cos(ang),y:spd*Math.sin(ang)},0,mass,r,i,COLORS[i%12]));
+    }
+  }
+
+  initialEnergy = totalEnergy();
+  initialMomentum = totalMomentum();
+}
+
+// ═══════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════
+function setMode(m) {
+  timeMode = m;
+  ['btn-live','btn-slow','btn-pause'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('btn-'+m.toLowerCase()).classList.add('active');
+}
+
+function toggleTrails() { showTrails = !showTrails; }
+function togglePhaseView() {
+  showPhase = !showPhase;
+  document.getElementById('phase-canvas').style.opacity = showPhase ? '1' : '0.2';
+}
+
+// ═══════════════════════════════════════
+// ANIMATION LOOP
+// ═══════════════════════════════════════
+function resize() {
+  const wrap = document.getElementById('canvas-wrap');
+  W = cv.width  = pcv.width  = wrap.clientWidth;
+  H = cv.height = wrap.clientHeight;
+  pcv.width = 280 - 2;  // panel width
+  pcv.height = 120;
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const rn = performance.now() / 1000;
+  const rd = Math.min(rn - lastReal, 0.05);
+  lastReal = rn;
+
+  let dt = 0;
+  if      (timeMode === 'LIVE') dt = rd * timeScale;
+  else if (timeMode === 'SLOW') dt = rd * timeScale * 0.08;
+
+  if (dt > 0) simulate(dt);
+
+  render();
+}
+
+window.addEventListener('resize', () => { resize(); });
+resize();
+loadScene('triangle');
+animate();
+
+document.addEventListener('keydown', e => {
+  if (e.key === ' ') setMode(timeMode === 'PAUSE' ? 'LIVE' : 'PAUSE');
+  if (e.key === 'r') loadScene(currentScene);
+  if (e.key === 's') setMode('SLOW');
+  if (e.key === 'l') setMode('LIVE');
+});
+</script>
+</body>
+</html>

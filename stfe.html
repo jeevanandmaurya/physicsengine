@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>STFE — Symplectic Trajectory Function Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b12;--s0:#0a0f1a;--s1:#0e1625;--s2:#121d30;
+  --b0:#162038;--b1:#1d2c48;--b2:#253860;
+  --t0:#d0e4ff;--t1:#8aabcf;--t2:#4a6a8a;--t3:#253550;
+  --ac:#3d9eff;--ac2:#1a6fd4;--acg:rgba(61,158,255,.12);
+  --cy:#00d4e8;--vi:#8b5cf6;--gn:#22d3b0;
+  --ok:#34d399;--er:#f87171;--wd:#fbbf24;
+  --mf:'Syne',sans-serif;--mm:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:var(--mf);color:var(--t1);}
+#root{display:grid;grid-template-columns:232px 1fr;grid-template-rows:1fr 46px;height:100vh;}
+
+/* ── SIDEBAR ── */
+#sb{grid-row:1;grid-column:1;background:var(--s0);border-right:1px solid var(--b0);display:flex;flex-direction:column;overflow:hidden;}
+.sb-head{padding:14px 16px 10px;border-bottom:1px solid var(--b0);flex-shrink:0;}
+.sb-logo{font-size:15px;font-weight:700;color:var(--t0);letter-spacing:.06em;}
+.sb-logo span{color:var(--ac);}
+.sb-sub{font-size:8.5px;color:var(--t3);letter-spacing:.14em;margin-top:2px;font-family:var(--mm);}
+.sb-mode{display:flex;border-bottom:1px solid var(--b0);flex-shrink:0;}
+.mbt{flex:1;padding:8px 6px;text-align:center;font-size:9.5px;font-weight:600;color:var(--t3);cursor:pointer;transition:.15s;letter-spacing:.06em;border-right:1px solid var(--b0);}
+.mbt:last-child{border-right:none;}
+.mbt:hover{color:var(--t1);background:var(--s1);}
+.mbt.on{color:var(--ac);background:var(--acg);position:relative;}
+.mbt.on::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--ac);border-radius:2px 2px 0 0;}
+.sb-body{flex:1;overflow-y:auto;overflow-x:hidden;}
+.sb-body::-webkit-scrollbar{width:2px;}
+.sb-body::-webkit-scrollbar-thumb{background:var(--b1);border-radius:1px;}
+.sg-title{padding:10px 14px 5px;font-size:8px;color:var(--t3);letter-spacing:.15em;font-weight:600;}
+.sitem{display:flex;align-items:center;padding:6px 14px;cursor:pointer;transition:.12s;gap:8px;border-left:2px solid transparent;}
+.sitem:hover{background:var(--s1);color:var(--t1);}
+.sitem.on{background:var(--acg);color:var(--ac);border-left-color:var(--ac);}
+.sitem .si-name{font-size:10.5px;font-weight:500;flex:1;}
+.sitem .si-tag{font-size:7.5px;font-family:var(--mm);color:var(--t3);background:var(--b0);padding:1px 5px;border-radius:3px;}
+.sitem.on .si-tag{color:var(--ac);background:rgba(61,158,255,.15);}
+.sep{height:1px;background:var(--b0);margin:4px 0;}
+/* Physics controls */
+.pc{padding:10px 14px;border-top:1px solid var(--b0);flex-shrink:0;}
+.pc-title{font-size:8px;color:var(--t3);letter-spacing:.15em;font-weight:600;margin-bottom:8px;}
+.pr{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.pl{font-size:9.5px;color:var(--t2);}
+.pv{font-family:var(--mm);font-size:9.5px;color:var(--t1);min-width:38px;text-align:right;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--b1);border-radius:1px;outline:none;cursor:pointer;margin-top:3px;margin-bottom:6px;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:var(--s1);border:2px solid var(--ac);border-radius:50%;cursor:pointer;transition:.1s;}
+input[type=range]:hover::-webkit-slider-thumb{background:var(--ac);}
+/* Scene ctrl */
+.sc{padding:8px 14px;border-top:1px solid var(--b0);}
+.sc-title{font-size:8px;color:var(--t3);letter-spacing:.15em;font-weight:600;margin-bottom:7px;}
+.sc-note{font-size:8px;color:var(--t3);font-weight:400;letter-spacing:.02em;}
+
+/* ── VIEWPORT ── */
+#vp{grid-row:1;grid-column:2;position:relative;overflow:hidden;background:var(--bg);}
+#c2{position:absolute;inset:0;width:100%;height:100%;display:block;}
+#c3{position:absolute;inset:0;display:none;}
+/* Scene info overlay */
+#info{position:absolute;top:14px;left:14px;pointer-events:none;max-width:320px;}
+.inf-name{font-size:13px;font-weight:700;color:var(--t0);margin-bottom:3px;}
+.inf-desc{font-size:10px;color:var(--t2);line-height:1.6;margin-bottom:4px;}
+.inf-proves{font-size:9px;font-family:var(--mm);color:var(--ac);opacity:.7;}
+/* Symp overlay */
+#symp{position:absolute;top:14px;right:14px;pointer-events:none;text-align:right;font-family:var(--mm);font-size:9px;line-height:1.9;display:none;}
+.sy-hd{color:var(--vi);font-size:8px;letter-spacing:.12em;font-weight:600;}
+.sy-r{color:var(--t2);}
+.sy-v{color:var(--t1);}
+.sy-g{color:var(--ok);}
+.sy-b{color:var(--er);}
+
+/* ── BOTTOM BAR ── */
+#bar{grid-row:2;grid-column:1/3;background:var(--s0);border-top:1px solid var(--b0);display:flex;align-items:center;padding:0 12px;gap:0;overflow:hidden;}
+.btn{padding:4px 10px;font-size:9.5px;font-weight:600;border:1px solid var(--b1);border-radius:4px;cursor:pointer;background:transparent;color:var(--t2);transition:.12s;letter-spacing:.04em;white-space:nowrap;font-family:var(--mf);}
+.btn:hover{color:var(--t1);border-color:var(--t2);background:var(--s1);}
+.btn.on{color:var(--ac);border-color:var(--ac);background:var(--acg);}
+.btn.act{background:rgba(61,158,255,.1);border-color:var(--ac);color:var(--ac);}
+.btn.act:hover{background:rgba(61,158,255,.2);}
+.bgrp{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+.bsep{width:1px;height:24px;background:var(--b0);margin:0 8px;flex-shrink:0;}
+.tg{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;}
+.tgp{width:24px;height:13px;background:var(--b1);border-radius:7px;position:relative;transition:.15s;flex-shrink:0;}
+.tgp::after{content:'';position:absolute;left:2px;top:2px;width:9px;height:9px;background:#fff;border-radius:50%;transition:.15s;opacity:.25;}
+.tgp.on{background:var(--ac);}
+.tgp.on::after{left:13px;opacity:1;}
+.tgl{font-size:9.5px;color:var(--t2);}
+/* Stats */
+.st{display:flex;flex-direction:column;gap:1px;padding:0 10px;flex-shrink:0;}
+.sl{font-size:7.5px;color:var(--t3);letter-spacing:.06em;}
+.sv{font-family:var(--mm);font-size:10px;color:var(--t1);}
+.sv.g{color:var(--ok);}
+.sv.b{color:var(--er);}
+.sv.c{color:var(--ac);}
+.sv.v{color:var(--vi);}
+.sv.w{color:var(--wd);}
+.sv.cy{color:var(--cy);}
+</style>
+</head>
+<body>
+<div id="root">
+<div id="sb">
+  <div class="sb-head">
+    <div class="sb-logo"><span>S</span>TFE</div>
+    <div class="sb-sub">SYMPLECTIC TRAJECTORY FUNCTION ENGINE</div>
+  </div>
+  <div class="sb-mode">
+    <div class="mbt on" id="m2d" onclick="A.setMode('2d')">2D CANVAS</div>
+    <div class="mbt" id="m3d" onclick="A.setMode('3d')">3D SPACE</div>
+  </div>
+  <div class="sb-body" id="sblist"></div>
+  <div class="pc">
+    <div class="pc-title">PHYSICS</div>
+    <div class="pr"><span class="pl">Gravity</span><span class="pv" id="vg">400</span></div>
+    <input type="range" id="sg" min="0" max="800" value="400" step="10">
+    <div class="pr"><span class="pl">Restitution</span><span class="pv" id="ve">1.00</span></div>
+    <input type="range" id="se" min="0" max="100" value="100" step="1">
+    <div class="pr"><span class="pl">Time scale</span><span class="pv" id="vt">1.00×</span></div>
+    <input type="range" id="st" min="5" max="300" value="100" step="5">
+    <div class="pr"><span class="pl">Trail length</span><span class="pv" id="vtrl">50</span></div>
+    <input type="range" id="strl" min="0" max="250" value="50" step="5">
+  </div>
+  <div class="sc">
+    <div class="sc-title">SCENE PARAMS <span class="sc-note">reset to apply</span></div>
+    <div id="sc-inner"></div>
+  </div>
+</div>
+
+<div id="vp">
+  <canvas id="c2"></canvas>
+  <div id="c3"></div>
+  <div id="info">
+    <div class="inf-name" id="inf-name"></div>
+    <div class="inf-desc" id="inf-desc"></div>
+    <div class="inf-proves" id="inf-proves"></div>
+  </div>
+  <div id="symp">
+    <div class="sy-hd">SYMPLECTIC RESOLVER</div>
+    <div class="sy-r">max simultaneous&nbsp;<span class="sy-v" id="sy-ms">0</span></div>
+    <div class="sy-r">M matrix&nbsp;<span class="sy-v" id="sy-m">0×0</span></div>
+    <div class="sy-r">proj ops&nbsp;<span class="sy-v" id="sy-po">0</span></div>
+    <div class="sy-r">config dim&nbsp;<span class="sy-v" id="sy-cd">0D</span></div>
+    <div class="sy-r">energy drift&nbsp;<span class="sy-v" id="sy-ed">0%</span></div>
+    <div class="sy-r">PGS iters&nbsp;<span class="sy-v" id="sy-it">200</span></div>
+  </div>
+</div>
+
+<div id="bar">
+  <div class="bgrp">
+    <button class="btn on" id="bl"  onclick="A.tm('LIVE')">▶ LIVE</button>
+    <button class="btn"    id="bs"  onclick="A.tm('SLOW')">◈ SLOW</button>
+    <button class="btn"    id="br"  onclick="A.tm('REV')">◀ REV</button>
+    <button class="btn"    id="bp"  onclick="A.tm('PAUSE')">⏸ PAUSE</button>
+  </div>
+  <div class="bsep"></div>
+  <div class="bgrp">
+    <button class="btn act" onclick="A.reset()">RESET</button>
+    <button class="btn" onclick="A.spawnRandom()">+ BODY</button>
+    <button class="btn" onclick="A.clearTrails()">CLR TRAILS</button>
+  </div>
+  <div class="bsep"></div>
+  <div class="bgrp">
+    <div class="tg" onclick="A.togTrails()"><div class="tgp on" id="tg-tr"></div><span class="tgl">Trails</span></div>
+    <div class="tg" onclick="A.togVec()"><div class="tgp" id="tg-v"></div><span class="tgl">Vectors</span></div>
+  </div>
+  <div class="bsep"></div>
+  <div class="st"><div class="sl">FPS</div><div class="sv g" id="sfps">0</div></div>
+  <div class="st"><div class="sl">OBJECTS</div><div class="sv cy" id="sobj">0</div></div>
+  <div class="st"><div class="sl">EVENTS/S</div><div class="sv" id="sevs">0</div></div>
+  <div class="st"><div class="sl">HEAP</div><div class="sv" id="shp">0</div></div>
+  <div class="st"><div class="sl">ENERGY DRIFT</div><div class="sv g" id="sed">+0.0000%</div></div>
+  <div class="st"><div class="sl">MAX SIMUL.</div><div class="sv v" id="sms">0</div></div>
+  <div class="st"><div class="sl">PROJ OPS</div><div class="sv v" id="spo">0</div></div>
+  <div class="st"><div class="sl">CACHE HITS</div><div class="sv" id="sch">0%</div></div>
+  <div class="st"><div class="sl">SIM TIME</div><div class="sv w" id="sst">0.000s</div></div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+'use strict';
+// ══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════════════
+const EPS=1e-10, SIMUL_EPS=2e-3;
+
+// ══════════════════════════════════════════════════════════════
+// MIN-HEAP
+// ══════════════════════════════════════════════════════════════
+class Heap{
+  constructor(){this.d=[];}
+  push(x){this.d.push(x);this._up(this.d.length-1);}
+  pop(){if(!this.d.length)return;const m=this.d[0],l=this.d.pop();if(this.d.length){this.d[0]=l;this._dn(0);}return m;}
+  peek(){return this.d[0];}
+  clear(){this.d=[];}
+  get size(){return this.d.length;}
+  _up(i){while(i>0){const p=(i-1)>>1;if(this.d[p].tc<=this.d[i].tc)break;[this.d[p],this.d[i]]=[this.d[i],this.d[p]];i=p;}}
+  _dn(i){const n=this.d.length;for(;;){let s=i,l=2*i+1,r=2*i+2;if(l<n&&this.d[l].tc<this.d[s].tc)s=l;if(r<n&&this.d[r].tc<this.d[s].tc)s=r;if(s===i)break;[this.d[s],this.d[i]]=[this.d[i],this.d[s]];i=s;}}
+  purge(bodies){
+    this.d=this.d.filter(ev=>{
+      const a=bodies.get(ev.ia);if(!a||a.gen!==ev.ga)return false;
+      if(ev.wid!==null)return true;
+      const b=bodies.get(ev.ib);return b&&b.gen===ev.gb;
+    });
+    for(let i=(this.d.length>>1)-1;i>=0;i--)this._dn(i);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// TRAJECTORY FUNCTION
+// ══════════════════════════════════════════════════════════════
+class TF{
+  constructor(p0,v0,t0,grav,mass,radius,id,color){
+    this.p0=p0.clone();this.v0=v0.clone();this.t0=t0;
+    this.grav=grav.clone();this.mass=mass;this.radius=radius;
+    this.id=id;this.color=color;this.gen=0;
+  }
+  pos(t){
+    const dt=t-this.t0;
+    return new THREE.Vector3(
+      this.p0.x+this.v0.x*dt+.5*this.grav.x*dt*dt,
+      this.p0.y+this.v0.y*dt+.5*this.grav.y*dt*dt,
+      this.p0.z+this.v0.z*dt+.5*this.grav.z*dt*dt);
+  }
+  vel(t){
+    const dt=t-this.t0;
+    return new THREE.Vector3(
+      this.v0.x+this.grav.x*dt,
+      this.v0.y+this.grav.y*dt,
+      this.v0.z+this.grav.z*dt);
+  }
+  KE(t){const v=this.vel(t);return .5*this.mass*(v.x*v.x+v.y*v.y+v.z*v.z);}
+  PE(t){return -this.grav.y*this.mass*this.pos(t).y;}
+  E(t){return this.KE(t)+this.PE(t);}
+  fork(tc,nv){
+    const nf=new TF(this.pos(tc),nv,tc,this.grav,this.mass,this.radius,this.id,this.color);
+    nf.gen=this.gen+1;return nf;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// PGS LCP SOLVER (Projected Gauss-Seidel)
+// Solves: M·P = b, P ≥ 0
+// M is the symmetric mass-metric contact matrix (k×k)
+// b is the target relative-velocity vector
+// Returns: impulse magnitudes P[k]
+// Converges for PSD M (always true for rigid body contacts)
+// ══════════════════════════════════════════════════════════════
+function solvePGS(M,b,k,maxIter=200,tol=1e-11){
+  const P=new Float64Array(k);
+  let lastErr=Infinity;
+  for(let it=0;it<maxIter;it++){
+    let err=0;
+    for(let a=0;a<k;a++){
+      const d=M[a*k+a];if(d<1e-15)continue;
+      let w=-b[a];
+      for(let c=0;c<k;c++)w+=M[a*k+c]*P[c];
+      const np=Math.max(0,P[a]-w/d);
+      err=Math.max(err,Math.abs(np-P[a]));
+      P[a]=np;
+    }
+    if(err<tol)break;
+    if(Math.abs(err-lastErr)<tol*1e-3)break; // stagnation
+    lastErr=err;
+  }
+  return P;
+}
+
+// ══════════════════════════════════════════════════════════════
+// TF ENGINE  ―  pure physics, renderer-agnostic
+// ══════════════════════════════════════════════════════════════
+class TFEngine{
+  constructor(mode='2d'){
+    this.mode=mode;
+    this.bodies=new Map();   // id → current TF
+    this.history=new Map();  // id → TF[] (full history)
+    this.heap=new Heap();
+    this.walls=[];this.wallMap={};
+    this.grav=new THREE.Vector3(0,-400,0);
+    this.en=1.0;            // coefficient of restitution
+    this.W=400;this.H=300;this.D=300;
+    this._idc=0;
+    // Stats
+    this.evtSec=0;this.evtLast=0;this._evtT=0;
+    this.maxSimul=0;this.projOps=0;
+    this.cacheHits=0;this.cacheMisses=0;
+    this._cache=new Map();
+    this.initE=0;
+    this._buildWalls();
+  }
+
+  setBounds(W,H,D=300){this.W=W;this.H=H;this.D=D;this._buildWalls();}
+
+  _buildWalls(){
+    this.walls=[
+      {id:'wL',ax:0,pos:-this.W,sgn:+1},
+      {id:'wR',ax:0,pos:+this.W,sgn:-1},
+      {id:'wB',ax:1,pos:-this.H,sgn:+1},
+      {id:'wT',ax:1,pos:+this.H,sgn:-1},
+    ];
+    if(this.mode==='3d'){
+      this.walls.push({id:'wBK',ax:2,pos:-this.D,sgn:+1});
+      this.walls.push({id:'wFR',ax:2,pos:+this.D,sgn:-1});
+    }
+    this.wallMap={};for(const w of this.walls)this.wallMap[w.id]=w;
+  }
+
+  reset(){
+    this.bodies.clear();this.history.clear();this.heap.clear();
+    this._cache.clear();this.cacheHits=0;this.cacheMisses=0;
+    this._idc=0;this.evtSec=0;this.evtLast=0;
+    this.maxSimul=0;this.projOps=0;this.initE=0;
+  }
+
+  addBody(p,v,mass,radius,color){
+    const id=`b${this._idc++}`;
+    const fn=new TF(p,v,0,this.grav,mass,radius,id,color);
+    this.bodies.set(id,fn);this.history.set(id,[fn]);
+    return id;
+  }
+
+  startPredictions(){
+    const ids=[...this.bodies.keys()];
+    for(let i=0;i<ids.length;i++){
+      const fa=this.bodies.get(ids[i]);
+      for(let j=i+1;j<ids.length;j++){
+        const fb=this.bodies.get(ids[j]);
+        const tr=Math.max(fa.t0,fb.t0,0);
+        const tc=this._detectSS(fa,fb,tr);
+        if(tc!==null&&tc>tr+EPS)this.heap.push({tc,ia:ids[i],ib:ids[j],ga:fa.gen,gb:fb.gen,wid:null});
+      }
+      for(const w of this.walls){
+        const tc=this._detectSW(fa,w,0);
+        if(tc!==null&&tc>EPS)this.heap.push({tc,ia:ids[i],ib:null,ga:fa.gen,gb:-1,wid:w.id});
+      }
+    }
+    this.initE=this.totalE(0);
+  }
+
+  setGravity(gy,t=0){
+    this.grav=new THREE.Vector3(0,-gy,0);
+    for(const[id,fn]of this.bodies){
+      const nf=fn.fork(t,fn.vel(t));nf.grav=this.grav.clone();nf.t0=t;
+      this.bodies.set(id,nf);this.history.get(id).push(nf);
+    }
+    this.heap.clear();this._cache.clear();
+    for(const[id]of this.bodies)this._predictFor(id);
+    this.initE=this.totalE(t);
+  }
+
+  advance(tgt){
+    let cap=12000;
+    while((cap--)>0){
+      const pk=this.heap.peek();if(!pk||pk.tc>tgt)break;
+      this._processBatch();
+    }
+    if(this.heap.size>10000)this.heap.purge(this.bodies);
+    this._gcHist(tgt-15);
+  }
+
+  tick(now){
+    if(now-this._evtT>=1){this.evtLast=this.evtSec;this.evtSec=0;this._evtT=now;}
+  }
+
+  getState(t){
+    const r=new Map();
+    for(const[id]of this.bodies){
+      const h=this.history.get(id);
+      let fn=this.bodies.get(id);
+      if(h)for(let i=h.length-1;i>=0;i--)if(h[i].t0<=t+EPS){fn=h[i];break;}
+      if(!fn)continue;
+      r.set(id,{pos:fn.pos(t),vel:fn.vel(t),radius:fn.radius,color:fn.color,mass:fn.mass});
+    }
+    return r;
+  }
+
+  totalE(t){
+    let e=0;
+    for(const[id]of this.bodies){
+      const h=this.history.get(id);
+      let fn=this.bodies.get(id);
+      if(h)for(let i=h.length-1;i>=0;i--)if(h[i].t0<=t+EPS){fn=h[i];break;}
+      if(fn)e+=fn.E(t);
+    }
+    return e;
+  }
+
+  // ── INTERNAL PHYSICS ───────────────────────────────────────
+
+  _processBatch(){
+    const pk=this.heap.peek();if(!pk)return;
+    const baseT=pk.tc;
+    // Drain simultaneous window
+    const raw=[];
+    while(this.heap.peek()&&this.heap.peek().tc<=baseT+SIMUL_EPS)raw.push(this.heap.pop());
+
+    // Filter stale + deduplicate
+    const valid=[],seen=new Set();
+    for(const ev of raw){
+      const fa=this.bodies.get(ev.ia);if(!fa||fa.gen!==ev.ga)continue;
+      if(ev.wid!==null){
+        const wall=this.wallMap[ev.wid];if(!wall)continue;
+        const k=`${ev.ia}:${ev.wid}`;if(seen.has(k))continue;seen.add(k);
+        valid.push({type:'wall',ia:ev.ia,wall});
+      }else{
+        const fb=this.bodies.get(ev.ib);if(!fb||fb.gen!==ev.gb)continue;
+        const k=[ev.ia,ev.ib].sort().join(':');if(seen.has(k))continue;seen.add(k);
+        valid.push({type:'sphere',ia:ev.ia,ib:ev.ib});
+      }
+    }
+    if(!valid.length)return;
+
+    // Connected components (union-find)
+    const parent=new Map();
+    const find=x=>{
+      if(!parent.has(x))parent.set(x,x);
+      let r=x;while(parent.get(r)!==r)r=parent.get(r);
+      let c=x;while(c!==r){const n=parent.get(c);parent.set(c,r);c=n;}
+      return r;
+    };
+    const unite=(a,b)=>{const ra=find(a),rb=find(b);if(ra!==rb)parent.set(ra,rb);};
+    for(const c of valid){
+      if(c.type==='sphere')unite(c.ia,c.ib);
+      else unite(c.ia,'w_'+c.wall.id);
+    }
+    const groups=new Map();
+    for(const c of valid){
+      const root=find(c.ia);
+      if(!groups.has(root))groups.set(root,[]);
+      groups.get(root).push(c);
+    }
+    for(const comp of groups.values())this._resolveComp(comp,baseT);
+  }
+
+  _resolveComp(contacts,tc){
+    // Gather bodies
+    const bset=new Set();
+    for(const c of contacts){bset.add(c.ia);if(c.type==='sphere')bset.add(c.ib);}
+    const bids=[...bset];
+
+    // Snapshot at tc
+    const Psnap=new Map(),Vsnap=new Map();
+    for(const id of bids){
+      const fn=this.bodies.get(id);
+      Psnap.set(id,fn.pos(tc));Vsnap.set(id,fn.vel(tc));
+    }
+
+    // Build active contacts (approaching only), compute normals
+    const active=[];
+    for(const c of contacts){
+      let nx=0,ny=0,nz=0,ib=null;
+      if(c.type==='sphere'){
+        const pi=Psnap.get(c.ia),pj=Psnap.get(c.ib);
+        const dx=pi.x-pj.x,dy=pi.y-pj.y,dz=pi.z-pj.z;
+        const len=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;
+        nx=dx/len;ny=dy/len;nz=dz/len;ib=c.ib;
+      }else{
+        const w=c.wall;
+        if(w.ax===0)nx=w.sgn;else if(w.ax===1)ny=w.sgn;else nz=w.sgn;
+      }
+      const vi=Vsnap.get(c.ia),vj=ib?Vsnap.get(ib):{x:0,y:0,z:0};
+      const vrn=(vi.x-vj.x)*nx+(vi.y-vj.y)*ny+(vi.z-vj.z)*nz;
+      if(vrn>-1e-8)continue;
+      active.push({type:c.type,ia:c.ia,ib,wall:c.wall,nx,ny,nz,vrn});
+    }
+    if(!active.length)return;
+
+    const k=active.length;
+    this.maxSimul=Math.max(this.maxSimul,k);
+    this.projOps+=k*k;
+
+    // ── BUILD MASS MATRIX M (k×k, flat Float64) ──────────────
+    // M_αβ = N_α · M_mass⁻¹ · N_β  (mass-weighted config-space inner product)
+    // M_αα = 1/m_ia + 1/m_ib  (diagonal: reduced-mass inverse)
+    // M_αβ = ±(n̂_α·n̂_β)/m_shared  (off-diagonal: geometric coupling)
+    const M=new Float64Array(k*k);
+    for(let a=0;a<k;a++){
+      for(let b=0;b<k;b++){
+        const ca=active[a],cb=active[b];
+        const nd=ca.nx*cb.nx+ca.ny*cb.ny+ca.nz*cb.nz;
+        let val=0;
+        // Contributions from shared bodies: sign depends on which "side" body appears
+        const ma=this.bodies.get(ca.ia),mb=this.bodies.get(cb.ia);
+        if(ca.ia===cb.ia&&ma)val+=nd/ma.mass;      // shared: i-side of both
+        if(ca.ib&&cb.ib&&ca.ib===cb.ib){
+          const mab=this.bodies.get(ca.ib);if(mab)val+=nd/mab.mass; // shared: j-side
+        }
+        if(ca.ib&&ca.ib===cb.ia&&mb)val-=nd/mb.mass;  // cross: j-side of a = i-side of b
+        if(cb.ib&&cb.ib===ca.ia&&ma)val-=nd/ma.mass;  // cross: j-side of b = i-side of a
+        M[a*k+b]=val;
+      }
+    }
+
+    // RHS: b_α = -(1+eN)*vrn_α
+    const rhs=new Float64Array(k);
+    for(let a=0;a<k;a++){
+      let e = this.en;
+      if (Math.abs(active[a].vrn) < 1.0) e = 0; // Cutoff restitution for micro-bounces (fixes Zeno lag)
+      rhs[a]=-(1+e)*active[a].vrn;
+    }
+
+    // ── SOLVE LCP (PGS, projected Gauss-Seidel) ───────────────
+    // Handles N simultaneous contacts in one k×k system
+    // P ≥ 0 enforced per-iteration (no separate clamping pass needed)
+    const P=solvePGS(M,rhs,k);
+
+    // Pre-collision velocities (for energy correction)
+    const VB=new Map();
+    for(const id of bids)VB.set(id,Vsnap.get(id).clone());
+
+    // ── ACCUMULATE VELOCITY DELTAS (simultaneously) ───────────
+    const dV=new Map();
+    for(const id of bids)dV.set(id,new THREE.Vector3());
+    for(let a=0;a<k;a++){
+      const c=active[a],p=P[a];if(p<EPS)continue;
+      const fna=this.bodies.get(c.ia),dv=dV.get(c.ia);
+      dv.x+=p*c.nx/fna.mass;dv.y+=p*c.ny/fna.mass;dv.z+=p*c.nz/fna.mass;
+      if(c.ib!==null){
+        const fnb=this.bodies.get(c.ib),dvb=dV.get(c.ib);
+        dvb.x-=p*c.nx/fnb.mass;dvb.y-=p*c.ny/fnb.mass;dvb.z-=p*c.nz/fnb.mass;
+      }
+    }
+
+    // Final velocities
+    const VA=new Map();
+    for(const id of bids){
+      const v=Vsnap.get(id),d=dV.get(id);
+      VA.set(id,new THREE.Vector3(v.x+d.x,v.y+d.y,v.z+d.z));
+    }
+
+    // ── ENERGY CONSERVATION CORRECTION ────────────────────────
+    // For elastic (en≈1): rescale CM-frame velocities so KE_cm_after = KE_cm_before
+    // This corrects floating-point drift while preserving momentum exactly.
+    const hasWall=active.some(c=>c.type==='wall');
+    if(this.en>=0.999&&!hasWall)this._fixEnergy(bids,VB,VA);
+
+    // ── POSITION CORRECTION (push apart) ──────────────────────
+    for(const c of active){
+      if(c.type==='sphere'){
+        const pi=Psnap.get(c.ia),pj=Psnap.get(c.ib);
+        const fna=this.bodies.get(c.ia),fnb=this.bodies.get(c.ib);
+        const tgt=fna.radius+fnb.radius;
+        const dx=pi.x-pj.x,dy=pi.y-pj.y,dz=pi.z-pj.z;
+        const dist=Math.sqrt(dx*dx+dy*dy+dz*dz);
+        if(dist<tgt&&dist>EPS){
+          const fix=(tgt-dist)*0.502;
+          pi.x+=dx/dist*fix;pi.y+=dy/dist*fix;pi.z+=dz/dist*fix;
+          pj.x-=dx/dist*fix;pj.y-=dy/dist*fix;pj.z-=dz/dist*fix;
+        }
+      }else{
+        const pi=Psnap.get(c.ia),fn=this.bodies.get(c.ia),w=c.wall;
+        const cs=w.pos+w.sgn*fn.radius,axs=['x','y','z'][w.ax];
+        pi[axs]=w.sgn>0?Math.max(pi[axs],cs):Math.min(pi[axs],cs);
+      }
+    }
+
+    // ── SEED NEW TFS SIMULTANEOUSLY ───────────────────────────
+    for(const id of bids){
+      const fn=this.bodies.get(id);
+      const nf=fn.fork(tc,VA.get(id));
+      nf.p0.copy(Psnap.get(id));
+      this.bodies.set(id,nf);
+      this.history.get(id).push(nf);
+    }
+
+    // Re-predict for all affected bodies
+    for(const id of bids)this._predictFor(id);
+    this.evtSec+=k;
+  }
+
+  _fixEnergy(bids,VB,VA){
+    // Compute CM velocity (conserved, from before)
+    let M=0,cmx=0,cmy=0,cmz=0;
+    for(const id of bids){
+      const fn=this.bodies.get(id),v=VB.get(id);
+      M+=fn.mass;cmx+=fn.mass*v.x;cmy+=fn.mass*v.y;cmz+=fn.mass*v.z;
+    }
+    if(M<EPS)return;cmx/=M;cmy/=M;cmz/=M;
+    
+    // CM velocity after LCP (can have slight numerical momentum drift)
+    let cmxA=0,cmyA=0,cmzA=0;
+    for(const id of bids){
+      const fn=this.bodies.get(id),v=VA.get(id);
+      cmxA+=fn.mass*v.x;cmyA+=fn.mass*v.y;cmzA+=fn.mass*v.z;
+    }
+    cmxA/=M;cmyA/=M;cmzA/=M;
+
+    // CM-frame KE before and after
+    let Kb=0,Ka=0;
+    for(const id of bids){
+      const fn=this.bodies.get(id);
+      const vb=VB.get(id),va=VA.get(id);
+      Kb+=.5*fn.mass*((vb.x-cmx)**2+(vb.y-cmy)**2+(vb.z-cmz)**2);
+      Ka+=.5*fn.mass*((va.x-cmxA)**2+(va.y-cmyA)**2+(va.z-cmzA)**2);
+    }
+    if(Ka<1e-12)return;
+    const s=Math.sqrt(Kb/Ka);
+    if(Math.abs(s-1)<1e-8)return;
+    // Rescale CM-frame velocities → preserves momentum EXACTLY, corrects energy
+    for(const id of bids){
+      const va=VA.get(id);
+      va.x=cmx+(va.x-cmxA)*s;va.y=cmy+(va.y-cmyA)*s;va.z=cmz+(va.z-cmzA)*s;
+    }
+  }
+
+  _predictFor(id){
+    const fn=this.bodies.get(id);if(!fn)return;
+    for(const[oid,other]of this.bodies){
+      if(oid===id)continue;
+      const tr=Math.max(fn.t0,other.t0);
+      const tc=this._detectSS(fn,other,tr);
+      if(tc!==null&&tc>tr+EPS)this.heap.push({tc,ia:id,ib:oid,ga:fn.gen,gb:other.gen,wid:null});
+    }
+    for(const w of this.walls){
+      const tc=this._detectSW(fn,w,fn.t0);
+      if(tc!==null&&tc>fn.t0+EPS)this.heap.push({tc,ia:id,ib:null,ga:fn.gen,gb:-1,wid:w.id});
+    }
+  }
+
+  _detectSS(fa,fb,tref){
+    const dta=tref-fa.t0,dtb=tref-fb.t0;
+    const px=(fa.p0.x+fa.v0.x*dta+.5*fa.grav.x*dta*dta)-(fb.p0.x+fb.v0.x*dtb+.5*fb.grav.x*dtb*dtb);
+    const py=(fa.p0.y+fa.v0.y*dta+.5*fa.grav.y*dta*dta)-(fb.p0.y+fb.v0.y*dtb+.5*fb.grav.y*dtb*dtb);
+    const pz=(fa.p0.z+fa.v0.z*dta+.5*fa.grav.z*dta*dta)-(fb.p0.z+fb.v0.z*dtb+.5*fb.grav.z*dtb*dtb);
+    const vx=(fa.v0.x+fa.grav.x*dta)-(fb.v0.x+fb.grav.x*dtb);
+    const vy=(fa.v0.y+fa.grav.y*dta)-(fb.v0.y+fb.grav.y*dtb);
+    const vz=(fa.v0.z+fa.grav.z*dta)-(fb.v0.z+fb.grav.z*dtb);
+    const rs=fa.radius+fb.radius,A=vx*vx+vy*vy+vz*vz;
+    const B=2*(px*vx+py*vy+pz*vz),C=px*px+py*py+pz*pz-rs*rs;
+    if(C<=2e-2&&B<-1e-8)return tref+EPS*1.5;
+    if(A<EPS)return null;
+    const disc=B*B-4*A*C;if(disc<0)return null;
+    const sq=Math.sqrt(Math.max(0,disc));
+    const t1=(-B-sq)/(2*A),t2=(-B+sq)/(2*A);
+    const tau=t1>EPS?t1:t2>EPS?t2:null;
+    return tau!==null?tref+tau:null;
+  }
+
+  _detectSW(fn,wall,tref){
+    const dt=tref-fn.t0,ax=['x','y','z'][wall.ax];
+    const pa=fn.p0[ax]+fn.v0[ax]*dt+.5*fn.grav[ax]*dt*dt;
+    const va=fn.v0[ax]+fn.grav[ax]*dt,ga=fn.grav[ax];
+    const cs=wall.pos+wall.sgn*fn.radius,off=pa-cs;
+    const distW=off*wall.sgn,vRel=va*wall.sgn,aRel=ga*wall.sgn;
+    if(distW<=2e-2&&(vRel<-1e-8||(Math.abs(vRel)<=1e-8&&aRel<0)))return tref+EPS*1.5;
+    let tau=null;
+    if(Math.abs(ga)<EPS){
+      if(Math.abs(va)<EPS)return null;const t=-off/va;if(t>EPS)tau=t;
+    }else{
+      const A=.5*ga,B=va,C=off,disc=B*B-4*A*C;if(disc<0)return null;
+      const sq=Math.sqrt(Math.max(0,disc));
+      const t1=(-B-sq)/(2*A),t2=(-B+sq)/(2*A);
+      const cand=[];
+      if(t1>EPS)cand.push(t1);
+      if(t2>EPS)cand.push(t2);
+      if(!cand.length)return null;
+      cand.sort((a,b)=>a-b);
+      for(const t of cand){
+        const tcTry=tref+t;
+        const vTry=fn.v0[ax]+fn.grav[ax]*(tcTry-fn.t0);
+        if(vTry*wall.sgn<=EPS){tau=t;break;}
+      }
+      if(tau===null)return null;
+    }
+    const tc=tref+tau;
+    if((fn.v0[ax]+fn.grav[ax]*(tc-fn.t0))*wall.sgn>EPS)return null;
+    return tc;
+  }
+
+  _gcHist(before){
+    for(const[,h]of this.history)while(h.length>1&&h[0].t0<before)h.shift();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDERER 2D  ―  Canvas2D with glow balls
+// ══════════════════════════════════════════════════════════════
+class R2D{
+  constructor(canvas,eng){
+    this.cv=canvas;this.eng=eng;
+    this.ctx=canvas.getContext('2d');
+    this.scale=1;this.ox=0;this.oy=0;
+    this.trails=new Map();// id→{pts,color}
+    this.trailMax=50;
+    this.showTrails=true;this.showVec=false;
+    this._TRAIL_DT=0.04;this._lastTrailT=-99;
+    this._resize();
+    // Pan
+    let drag=false,dx=0,dy=0;
+    canvas.addEventListener('mousedown',e=>{drag=true;dx=e.clientX-this.ox;dy=e.clientY-this.oy;});
+    window.addEventListener('mousemove',e=>{if(drag){this.ox=e.clientX-dx;this.oy=e.clientY-dy;}});
+    window.addEventListener('mouseup',()=>drag=false);
+    canvas.addEventListener('wheel',e=>{const f=e.deltaY<0?1.12:.89;this.scale*=f;},{ passive:true});
+  }
+
+  _resize(){
+    const r=this.cv.getBoundingClientRect();
+    this.cv.width=r.width*devicePixelRatio;
+    this.cv.height=r.height*devicePixelRatio;
+    const pw=this.eng.W*2,ph=this.eng.H*2;
+    this.scale=Math.min(this.cv.width/pw,this.cv.height/ph)*0.82;
+  }
+
+  toS(p){
+    return{x:this.cv.width*.5+this.ox+p.x*this.scale,
+           y:this.cv.height*.5+this.oy-p.y*this.scale};
+  }
+
+  draw(t,simT){
+    const ctx=this.ctx,W=this.cv.width,H=this.cv.height;
+
+    // BG — deep space gradient
+    const bg=ctx.createRadialGradient(W*.5,H*.5,0,W*.5,H*.5,Math.max(W,H)*.7);
+    bg.addColorStop(0,'#0a0e18');bg.addColorStop(1,'#060810');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+    // Grid
+    this._drawGrid(ctx);
+
+    const state=this.eng.getState(t);
+    const doTrail=Math.abs(simT-this._lastTrailT)>=this._TRAIL_DT;
+    if(doTrail)this._lastTrailT=simT;
+
+    // Sync trails
+    for(const id of this.trails.keys())if(!state.has(id))this.trails.delete(id);
+
+    // Draw trails first (under balls)
+    if(this.showTrails){
+      for(const[id,body]of state){
+        if(!this.trails.has(id))this.trails.set(id,{pts:[],c:body.color});
+        const tr=this.trails.get(id);
+        if(doTrail){
+          const s=this.toS(body.pos);tr.pts.push(s.x,s.y);
+          if(tr.pts.length>this.trailMax*2)tr.pts.splice(0,tr.pts.length-this.trailMax*2);
+        }
+        this._drawTrail(ctx,tr);
+      }
+    }
+
+    // Draw balls
+    for(const[id,body]of state){
+      const s=this.toS(body.pos);
+      const sr=Math.max(2,body.radius*this.scale);
+      this._drawBall(ctx,s.x,s.y,sr,body.color,body.vel.length());
+    }
+
+    // Velocity vectors
+    if(this.showVec){
+      for(const[,body]of state){
+        const spd=body.vel.length();if(spd<1)continue;
+        const s=this.toS(body.pos);
+        const nx=body.vel.x/spd,ny=-body.vel.y/spd;
+        const len=Math.min(spd*.18*this.scale,90);
+        const c=body.color;
+        ctx.save();
+        ctx.strokeStyle=`rgba(${c.r*255|0},${c.g*255|0},${c.b*255|0},.7)`;
+        ctx.lineWidth=1.5;ctx.beginPath();
+        ctx.moveTo(s.x,s.y);ctx.lineTo(s.x+nx*len,s.y+ny*len);ctx.stroke();
+        const hx=s.x+nx*len,hy=s.y+ny*len;
+        ctx.fillStyle=`rgba(${c.r*255|0},${c.g*255|0},${c.b*255|0},.7)`;
+        ctx.beginPath();ctx.moveTo(hx,hy);
+        ctx.lineTo(hx-nx*9-ny*4,hy-ny*9+nx*4);
+        ctx.lineTo(hx-nx*9+ny*4,hy-ny*9-nx*4);
+        ctx.closePath();ctx.fill();ctx.restore();
+      }
+    }
+  }
+
+  _drawGrid(ctx){
+    const tl=this.toS({x:-this.eng.W,y:this.eng.H});
+    const br=this.toS({x:this.eng.W,y:-this.eng.H});
+    const W=br.x-tl.x,H=br.y-tl.y;
+    ctx.save();ctx.strokeStyle='rgba(18,32,54,.9)';ctx.lineWidth=.5;
+    const gn=14;
+    for(let i=0;i<=gn;i++){
+      ctx.beginPath();ctx.moveTo(tl.x+W*i/gn,tl.y);ctx.lineTo(tl.x+W*i/gn,br.y);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(tl.x,tl.y+H*i/gn);ctx.lineTo(br.x,tl.y+H*i/gn);ctx.stroke();
+    }
+    // Box glow border
+    ctx.shadowColor='rgba(61,158,255,.5)';ctx.shadowBlur=16;
+    ctx.strokeStyle='rgba(61,158,255,.2)';ctx.lineWidth=1;
+    ctx.strokeRect(tl.x,tl.y,W,H);
+    ctx.restore();
+  }
+
+  _drawTrail(ctx,tr){
+    if(tr.pts.length<4)return;
+    const c=tr.c,n=tr.pts.length/2;
+    ctx.save();
+    for(let i=2;i<tr.pts.length;i+=2){
+      const a=(i/tr.pts.length)*.55;
+      ctx.beginPath();
+      ctx.moveTo(tr.pts[i-2],tr.pts[i-1]);ctx.lineTo(tr.pts[i],tr.pts[i+1]);
+      ctx.strokeStyle=`rgba(${c.r*255|0},${c.g*255|0},${c.b*255|0},${a})`;
+      ctx.lineWidth=1.2;ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  _drawBall(ctx,x,y,r,col,spd){
+    ctx.save();
+    ctx.fillStyle = `rgb(${col.r*255|0}, ${col.g*255|0}, ${col.b*255|0})`;
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, r*0.1);
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  clearTrails(){for(const t of this.trails.values())t.pts=[];}
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDERER 3D  ―  Three.js
+// ══════════════════════════════════════════════════════════════
+class R3D{
+  constructor(container,eng){
+    this.eng=eng;this.container=container;
+    this.sc=new THREE.Scene();
+    this.sc.background=new THREE.Color(0x070b12);
+    this.sc.fog=new THREE.FogExp2(0x070b12,.0007);
+    const r=container.getBoundingClientRect();
+    this.cam=new THREE.PerspectiveCamera(52,r.width/r.height,1,5000);
+    this.cam.position.set(0,120,650);this.cam.lookAt(0,0,0);
+    this.ren=new THREE.WebGLRenderer({antialias:true});
+    this.ren.setPixelRatio(devicePixelRatio);
+    this.ren.setSize(r.width,r.height);
+    container.appendChild(this.ren.domElement);
+    this.ctrl=new THREE.OrbitControls(this.cam,this.ren.domElement);
+    this.ctrl.enableDamping=true;this.ctrl.dampingFactor=.07;
+    // Lights
+    this.sc.add(new THREE.AmbientLight(0x1a2840,.6));
+    const pl1=new THREE.PointLight(0x3d9eff,1.4,3500);pl1.position.set(200,450,200);this.sc.add(pl1);
+    const pl2=new THREE.PointLight(0x8b5cf6,.5,2000);pl2.position.set(-300,-100,-250);this.sc.add(pl2);
+    const pl3=new THREE.PointLight(0x22d3b0,.3,1500);pl3.position.set(0,-200,300);this.sc.add(pl3);
+    this.meshes=new Map();this.trails3=new Map();this.arrows=new Map();
+    this.showTrails=true;this.showVec=false;
+    this.trailMax=50;
+    this._TRAIL_DT=0.04;this._lastTrailT=-99;
+    this._boxW=null;this._buildBox();
+  }
+
+  _buildBox(){
+    if(this._boxW){this.sc.remove(this._boxW);this._boxW.geometry.dispose();}
+    const W=this.eng.W,H=this.eng.H,D=this.eng.D;
+    const eg=new THREE.EdgesGeometry(new THREE.BoxGeometry(W*2,H*2,D*2));
+    this._boxW=new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:0x162038,transparent:true,opacity:.7}));
+    this.sc.add(this._boxW);
+    const g=new THREE.GridHelper(Math.max(W,D)*2,16,0x101b2d,0x0e1828);
+    g.position.y=-H;this.sc.add(g);
+  }
+
+  _ensure(id,body){
+    if(!this.meshes.has(id)){
+      const c=body.color;
+      const mat=new THREE.MeshLambertMaterial({color:c});
+      const mesh=new THREE.Mesh(new THREE.SphereGeometry(body.radius,16,12),mat);
+      this.sc.add(mesh);this.meshes.set(id,mesh);
+      const tg=new THREE.BufferGeometry();
+      const tb=new Float32Array(250*3);tg.setAttribute('position',new THREE.BufferAttribute(tb,3));tg.setDrawRange(0,0);
+      const tl=new THREE.Line(tg,new THREE.LineBasicMaterial({color:c,transparent:true,opacity:.3}));
+      this.sc.add(tl);this.trails3.set(id,{pts:[],line:tl,geom:tg});
+      const arr=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(),60,body.color,12,6);
+      arr.visible=false;this.sc.add(arr);this.arrows.set(id,arr);
+    }
+    return this.meshes.get(id);
+  }
+
+  _remove(id){
+    const m=this.meshes.get(id);if(m){this.sc.remove(m);m.geometry.dispose();m.material.dispose();this.meshes.delete(id);}
+    const t=this.trails3.get(id);if(t){this.sc.remove(t.line);t.geom.dispose();t.line.material.dispose();this.trails3.delete(id);}
+    const a=this.arrows.get(id);if(a){this.sc.remove(a);this.arrows.delete(id);}
+  }
+
+  draw(t,simT){
+    const state=this.eng.getState(t);
+    const doTrail=Math.abs(simT-this._lastTrailT)>=this._TRAIL_DT;
+    if(doTrail)this._lastTrailT=simT;
+    for(const id of this.meshes.keys())if(!state.has(id))this._remove(id);
+    for(const[id,body]of state){
+      const mesh=this._ensure(id,body);
+      mesh.position.copy(body.pos);
+      
+      const tr=this.trails3.get(id);
+      if(tr&&this.showTrails&&doTrail){
+        tr.pts.push(body.pos.x,body.pos.y,body.pos.z);
+        if(tr.pts.length>this.trailMax*3)tr.pts.splice(0,tr.pts.length-this.trailMax*3);
+        const pa=tr.geom.attributes.position,n=tr.pts.length/3|0;
+        for(let i=0;i<n;i++)pa.setXYZ(i,tr.pts[i*3],tr.pts[i*3+1],tr.pts[i*3+2]);
+        pa.needsUpdate=true;tr.geom.setDrawRange(0,n);
+      }else if(tr&&!this.showTrails)tr.geom.setDrawRange(0,0);
+      const arr=this.arrows.get(id);
+      if(arr){
+        const spd=body.vel.length();
+        arr.visible=this.showVec&&spd>2;
+        if(arr.visible){arr.position.copy(body.pos);arr.setDirection(body.vel.clone().normalize());arr.setLength(Math.min(spd*.2,100),12,6);}
+      }
+    }
+    this.ctrl.update();this.ren.render(this.sc,this.cam);
+  }
+
+  clearTrails(){for(const t of this.trails3.values())t.pts=[];}
+  resize(){const r=this.container.getBoundingClientRect();this.cam.aspect=r.width/r.height;this.cam.updateProjectionMatrix();this.ren.setSize(r.width,r.height);}
+}
+
+// ══════════════════════════════════════════════════════════════
+// COLOR PALETTE
+// ══════════════════════════════════════════════════════════════
+const PAL=[
+  new THREE.Color(.15,.55,.95),  // blue
+  new THREE.Color(.0,.82,.9),    // cyan
+  new THREE.Color(.55,.25,.95),  // purple
+  new THREE.Color(.1,.88,.65),   // teal
+  new THREE.Color(.2,.6,1),      // sky
+  new THREE.Color(.82,.4,.95),   // violet
+  new THREE.Color(.1,.95,.4),    // green
+  new THREE.Color(.95,.62,.12),  // gold
+  new THREE.Color(.95,.3,.4),    // red
+  new THREE.Color(.3,.4,.95),    // indigo
+  new THREE.Color(.0,.72,.82),   // ocean
+  new THREE.Color(.65,.3,.92),   // lavender
+];
+
+function rp(i){return PAL[((i%PAL.length)+PAL.length)%PAL.length];}
+function rv3(W,H,r=0){return new THREE.Vector3((Math.random()*2-1)*(W-r),(Math.random()*2-1)*(H-r),0);}
+function rspd(s){return new THREE.Vector3((Math.random()*2-1)*s,(Math.random()*2-1)*s,0);}
+function noOv(p,r,placed){for(const[pr,pp]of placed)if(p.distanceTo(pp)<r+pr+2)return false;return true;}
+function randPos(W,H,r,placed,tries=400){
+  for(let i=0;i<tries;i++){
+    const p=rv3(W,H,r);if(noOv(p,r,placed)){placed.push([r,p]);return p;}
+  }
+  const p=rv3(W*.5,H*.5,r);placed.push([r,p]);return p;
+}
+
+// ══════════════════════════════════════════════════════════════
+// SCENES
+// ══════════════════════════════════════════════════════════════
+const SCENES={
+  // ── GROUP: SYMPLECTIC CORE ────────────────────────────────
+  EQUILATERAL:{
+    group:'SYMPLECTIC CORE',
+    name:'Equilateral Triangle',
+    desc:'Three equal spheres placed at equilateral positions converge to exact center contact simultaneously. Sequential resolver produces order-dependent, asymmetric result. Symplectic solves 3×3 M in one pass.',
+    proves:'∑ 3-body simultaneous · M is 3×3 · geometry encodes coupling · symmetric by construction',
+    grav:0,rest:100,
+    ctrl:[{id:'cc-tr',l:'Radius',min:12,max:40,val:24,step:1},{id:'cc-tsp',l:'Speed',min:60,max:500,val:200,step:10}],
+    setup(eng,gc){
+      eng.setBounds(260,260);
+      const r=gc('cc-tr',24),spd=gc('cc-tsp',200),m=80;
+      const R=r*2+90;
+      for(let i=0;i<3;i++){
+        const a=(i*120-90)*Math.PI/180;
+        const p=new THREE.Vector3(R*Math.cos(a),R*Math.sin(a),0);
+        const v=new THREE.Vector3(-spd*Math.cos(a),-spd*Math.sin(a),0);
+        eng.addBody(p,v,m,r,PAL[i]);
+      }
+    }
+  },
+  SQUARE4:{
+    group:'SYMPLECTIC CORE',
+    name:'Square 4-Body',
+    desc:'Four spheres from square corners converging simultaneously. 4×4 mass matrix. Off-diagonals couple all four contacts at once — impossible for sequential resolvers to handle correctly.',
+    proves:'∑ 4-body simultaneous · 4×4 M · geometric off-diagonal coupling · PGS LCP iteration',
+    grav:0,rest:100,
+    ctrl:[{id:'cc-sqr',l:'Radius',min:10,max:30,val:18,step:1},{id:'cc-sqsp',l:'Speed',min:60,max:400,val:180,step:10}],
+    setup(eng,gc){
+      eng.setBounds(260,260);
+      const r=gc('cc-sqr',18),spd=gc('cc-sqsp',180),m=60;
+      const R=r*2+80;
+      for(let i=0;i<4;i++){
+        const a=(i*90+45)*Math.PI/180;
+        const p=new THREE.Vector3(R*Math.cos(a),R*Math.sin(a),0);
+        const v=new THREE.Vector3(-spd*Math.cos(a),-spd*Math.sin(a),0);
+        eng.addBody(p,v,m,r,PAL[i]);
+      }
+    }
+  },
+  CLUSTER:{
+    group:'SYMPLECTIC CORE',
+    name:'N-Body Cluster',
+    desc:'N spheres all converging to center simultaneously. M grows to N×N. Projection ops = k² for k active contacts. Every op is necessary — no wasted computation possible.',
+    proves:'∑ N-body simultaneous · k×k M · proj ops = k² (minimum possible) · O(k²) is exact',
+    grav:0,rest:100,
+    ctrl:[{id:'cc-cln',l:'Count',min:3,max:10,val:6,step:1},{id:'cc-clsp',l:'Speed',min:50,max:400,val:160,step:10},{id:'cc-clr',l:'Radius',min:10,max:30,val:18,step:1}],
+    setup(eng,gc){
+      eng.setBounds(260,260);
+      const n=gc('cc-cln',6),spd=gc('cc-clsp',160),r=gc('cc-clr',18),m=60;
+      const R=r*2+80;
+      for(let i=0;i<n;i++){
+        const a=i*360/n*Math.PI/180;
+        const p=new THREE.Vector3(R*Math.cos(a),R*Math.sin(a),0);
+        const v=new THREE.Vector3(-spd*Math.cos(a),-spd*Math.sin(a),0);
+        eng.addBody(p,v,m,r,rp(i));
+      }
+    }
+  },
+  NEWTON_CRADLE:{
+    group:'SYMPLECTIC CORE',
+    name:"Newton's Cradle",
+    desc:"Classic cradle: 1 ball in, 1 ball out. BUT launch 2 or 3: sequential resolvers fail (order determines which ball exits). Symplectic tridiagonal M guarantees correct k-ball excitation.",
+    proves:'∑ Tridiagonal M · k-in k-out correctness · impossible for naive sequential',
+    grav:0,rest:100,
+    ctrl:[{id:'cc-nn',l:'Total balls',min:3,max:8,val:5,step:1},{id:'cc-nl',l:'Launched',min:1,max:3,val:2,step:1},{id:'cc-nsp',l:'Speed',min:80,max:600,val:280,step:20}],
+    setup(eng,gc){
+      eng.setBounds(600,100);
+      const n=gc('cc-nn',5),launch=Math.min(gc('cc-nl',2),n-1),spd=gc('cc-nsp',280);
+      const r=20,m=100,sp=r*2+.4,stat=n-launch;
+      const cx=-(stat-1)*sp/2;
+      for(let i=0;i<stat;i++)eng.addBody(new THREE.Vector3(cx+i*sp,0,0),new THREE.Vector3(0,0,0),m,r,rp(i));
+      for(let i=0;i<launch;i++)eng.addBody(new THREE.Vector3(cx-(launch-i)*sp,0,0),new THREE.Vector3(spd,0,0),m,r,new THREE.Color(.88,.9,.95));
+    }
+  },
+  BILLIARD:{
+    group:'SYMPLECTIC CORE',
+    name:'Billiard Break',
+    desc:'15-ball rack. Break shot creates a cluster of simultaneous contacts that a sequential resolver handles differently depending on iteration order. Symplectic component-wise solve handles each cluster correctly.',
+    proves:'∑ Cluster detection · component-wise LCP · energy conserved across break',
+    grav:0,rest:100,
+    ctrl:[{id:'cc-bsp',l:'Cue speed',min:400,max:2000,val:1000,step:50}],
+    setup(eng,gc){
+      eng.setBounds(520,280);
+      const spd=gc('cc-bsp',1000),r=15,m=100,sp=r*2+.5,row=sp*Math.sin(Math.PI/3);
+      const colors=[0xe8c832,0x3466cc,0xcc2222,0x882299,0xdd6600,0x228844,0xbb1111,0x333333];
+      let bi=0;
+      for(let row2=0;row2<5;row2++)
+        for(let col=0;col<=row2;col++){
+          const p=new THREE.Vector3(70+row2*row,(col-row2/2)*sp,0);
+          eng.addBody(p,new THREE.Vector3(0,0,0),m,r,new THREE.Color(colors[bi%8]));bi++;
+        }
+      eng.addBody(new THREE.Vector3(-eng.W+45,0,0),new THREE.Vector3(spd,0,0),m,r,new THREE.Color(.9,.9,.9));
+    }
+  },
+  // ── GROUP: PHYSICS DEMOS ─────────────────────────────────
+  ANTITUNNEL:{
+    group:'PHYSICS DEMOS',
+    name:'Anti-Tunnel Proof',
+    desc:'Heavy projectile at 4000 u/s through targets spaced 60 u apart. At 60fps a step integrator moves ~67 u/frame — skipping each target entirely. TFE quadratic roots find every collision at any speed.',
+    proves:'⬡ Exact quadratic detection · zero tunneling · speed-independent · analytical roots',
+    grav:0,rest:100,
+    ctrl:[{id:'cc-atsp',l:'Proj speed',min:1000,max:8000,val:4000,step:100},{id:'cc-atn',l:'Targets',min:3,max:14,val:9,step:1}],
+    setup(eng,gc){
+      eng.setBounds(500,100);
+      const spd=gc('cc-atsp',4000),n=gc('cc-atn',9),tr=10,sp=75;
+      for(let i=0;i<n;i++){
+        const x=-((n-1)*sp/2)+i*sp;
+        eng.addBody(new THREE.Vector3(x,0,0),new THREE.Vector3(0,0,0),tr**3*.007,tr,rp(i));
+      }
+      eng.addBody(new THREE.Vector3(-eng.W+12,0,0),new THREE.Vector3(spd,0,0),14**3*1.5,14,new THREE.Color(.95,.55,.1));
+    }
+  },
+  EXACTENERGY:{
+    group:'PHYSICS DEMOS',
+    name:'Exact Energy Conservation',
+    desc:'Elastic collisions indefinitely. Watch the Energy Drift stat hold at +0.0000%. CM-frame velocity rescaling corrects floating-point impulse errors after each resolution — drift is structurally zeroed.',
+    proves:'⬡ Algebraic impulse · CM-frame correction · drift = 0 long-run · not possible in step integrators',
+    grav:280,rest:100,
+    ctrl:[{id:'cc-een',l:'Ball count',min:6,max:40,val:16,step:2}],
+    setup(eng,gc){
+      eng.setBounds(320,260);
+      const n=gc('cc-een',16),placed=[];
+      for(let i=0;i<n;i++){
+        const r=12+Math.random()*4;
+        const p=randPos(eng.W,eng.H,r,placed);
+        const v=rspd(200);
+        eng.addBody(p,v,r**3*.01,r,rp(i));
+      }
+    }
+  },
+  REWIND:{
+    group:'PHYSICS DEMOS',
+    name:'Exact Rewind',
+    desc:'TF history per body is retained exactly. Pressing REV replays closed-form parabolas — no interpolation, no error accumulation. Step integrators discard state each frame, making rewind impossible.',
+    proves:'⬡ Closed-form TF history · exact parabola rewind · no interpolation error',
+    grav:280,rest:100,
+    ctrl:[{id:'cc-rwn',l:'Balls',min:4,max:20,val:10,step:1},{id:'cc-rwsp',l:'Speed',min:80,max:400,val:200,step:20}],
+    setup(eng,gc){
+      eng.setBounds(340,280);
+      const n=gc('cc-rwn',10),spd=gc('cc-rwsp',200),placed=[];
+      for(let i=0;i<n;i++){
+        const r=14+Math.random()*4;
+        const p=randPos(eng.W,eng.H,r,placed);
+        eng.addBody(p,rspd(spd),r**3*.01,r,rp(i));
+      }
+    }
+  },
+  IDLECOST:{
+    group:'PHYSICS DEMOS',
+    name:'Idle Cost = Zero',
+    desc:'150 objects in gentle free-fall. Watch Compute/frame hold near 0 — TFE fires physics only at discrete collision events. Step integrators pay O(N) every frame unconditionally.',
+    proves:'⬡ O(events) not O(N/frame) · idle bodies cost zero · events are data not computation',
+    grav:300,rest:100,
+    ctrl:[{id:'cc-icn',l:'Object count',min:40,max:180,val:120,step:10}],
+    setup(eng,gc){
+      eng.setBounds(580,440);
+      const n=gc('cc-icn',120),placed=[];
+      for(let i=0;i<n;i++){
+        const r=11+Math.random()*5;
+        const p=randPos(eng.W,eng.H,r,placed);
+        eng.addBody(p,rspd(25),r**3*.01,r,rp(i));
+      }
+    }
+  },
+  // ── GROUP: STATISTICAL PHYSICS ────────────────────────────
+  MAXWELL:{
+    group:'STATISTICAL PHYSICS',
+    name:'Maxwell-Boltzmann',
+    desc:'Bimodal start: hot (orange) and cold (blue) particles. Elastic collisions drive equipartition — watch both speed distributions converge to a single Maxwell-Boltzmann curve.',
+    proves:'⬡ Equipartition theorem · thermalization · emergent M-B distribution',
+    grav:0,rest:100,
+    ctrl:[{id:'cc-mn',l:'Count',min:20,max:80,val:48,step:4},{id:'cc-mhs',l:'Hot speed',min:200,max:900,val:480,step:20},{id:'cc-mcs',l:'Cold speed',min:20,max:200,val:60,step:10}],
+    setup(eng,gc){
+      eng.setBounds(320,280);
+      const n=gc('cc-mn',48),hs=gc('cc-mhs',480),cs=gc('cc-mcs',60),placed=[];
+      for(let i=0;i<n;i++){
+        const r=9;const p=randPos(eng.W,eng.H,r,placed);
+        const hot=i<n/2,spd=(hot?hs:cs)*(0.7+Math.random()*.6);
+        const ang=Math.random()*Math.PI*2;
+        const v=new THREE.Vector3(Math.cos(ang)*spd,Math.sin(ang)*spd,0);
+        eng.addBody(p,v,r**3*.01,r,hot?new THREE.Color(.9,.55,.1):new THREE.Color(.1,.55,.95));
+      }
+    }
+  },
+  GRANULAR:{
+    group:'STATISTICAL PHYSICS',
+    name:'Granular Gas',
+    desc:'Inelastic collisions (low restitution) dissipate KE. Particles cluster — inelastic collapse. Collision intervals shrink toward zero as energy drains.',
+    proves:'⬡ Energy dissipation · granular temperature · inelastic clustering',
+    grav:280,rest:62,
+    ctrl:[{id:'cc-gn',l:'Particles',min:20,max:80,val:45,step:5}],
+    setup(eng,gc){
+      eng.setBounds(300,240);
+      const n=gc('cc-gn',45),placed=[];
+      for(let i=0;i<n;i++){
+        const r=10+Math.random()*6;
+        const p=randPos(eng.W,eng.H,r,placed);
+        eng.addBody(p,rspd(150),r**3*.012,r,rp(i).clone().lerp(new THREE.Color(.6,.3,.1),0.4));
+      }
+    }
+  },
+  BROWNIAN:{
+    group:'STATISTICAL PHYSICS',
+    name:'Brownian Motion',
+    desc:'One heavy particle (large) buffeted by light gas molecules. Deterministic elastic collisions produce an emergent random walk — exactly Brownian diffusion without any randomness built in.',
+    proves:'⬡ Emergent randomness · mass-ratio impulse scaling · deterministic chaos',
+    grav:0,rest:100,
+    ctrl:[{id:'cc-bigr',l:'Dust radius',min:16,max:44,val:28,step:1},{id:'cc-nmol',l:'Gas count',min:30,max:120,val:70,step:5},{id:'cc-mspd',l:'Mol speed',min:150,max:800,val:420,step:10}],
+    setup(eng,gc){
+      eng.setBounds(380,320);
+      const bigR=gc('cc-bigr',28),nm=gc('cc-nmol',70),ms=gc('cc-mspd',420);
+      const bm=bigR**3*.6;
+      const bp=new THREE.Vector3(0,0,0);
+      eng.addBody(bp,new THREE.Vector3(0,0,0),bm,bigR,new THREE.Color(.8,.82,.9));
+      const placed=[[bigR,bp]];
+      for(let i=0;i<nm;i++){
+        const r=5+Math.random()*2.5;const p=randPos(eng.W,eng.H,r,placed);
+        const ang=Math.random()*Math.PI*2;const spd=ms*(0.6+Math.random()*.8);
+        eng.addBody(p,new THREE.Vector3(Math.cos(ang)*spd,Math.sin(ang)*spd,0),r**3*.008,r,new THREE.Color(.1,.5+Math.random()*.3,.9));
+      }
+    }
+  },
+  // ── GROUP: STRESS TESTS ───────────────────────────────────
+  EVENTSTORM:{
+    group:'STRESS TESTS',
+    name:'Event Storm',
+    desc:'Dense sphere pack generates thousands of simultaneous collisions per second. Min-heap queues all future events as data. FPS stays stable regardless of burst density — rendering and physics are fully decoupled.',
+    proves:'⬡ Heap absorbs event bursts · FPS decoupled · render ≠ physics',
+    grav:0,rest:100,
+    ctrl:[{id:'cc-esn',l:'Ball count',min:30,max:100,val:65,step:5}],
+    setup(eng,gc){
+      eng.setBounds(175,155);
+      const n=gc('cc-esn',65),placed=[];
+      for(let i=0;i<n;i++){
+        const r=8+Math.random()*3;const p=randPos(eng.W,eng.H,r,placed);
+        const ang=Math.random()*Math.PI*2;
+        eng.addBody(p,new THREE.Vector3(Math.cos(ang)*300,Math.sin(ang)*300,0),r**3*.01,r,rp(i));
+      }
+    }
+  },
+  STACKING:{
+    group:'STRESS TESTS',
+    name:'Zeno Contact (Stacking)',
+    desc:'Spheres dropped on floor. Without resting-contact solver, each sphere micro-bounces forever — event intervals shrink toward zero (Zeno\'s paradox). Watch heap and events/s diverge.',
+    proves:'⚠ Zeno contact gap · event rate divergence · resting contact unsolved',
+    grav:550,rest:100,
+    ctrl:[{id:'cc-stn',l:'Stack height',min:2,max:10,val:5,step:1}],
+    setup(eng,gc){
+      eng.setBounds(200,200);
+      const n=gc('cc-stn',5),r=14,m=100;
+      for(let i=0;i<n;i++){
+        const p=new THREE.Vector3(0,eng.H-((i+1)*r*2+1),0);
+        eng.addBody(p,new THREE.Vector3(0,0,0),m,r,new THREE.Color(.8,.82,.9));
+      }
+    }
+    },
+    PYRAMID:{
+      group:'STRESS TESTS',
+      name:'Pyramid Collapse',
+      desc:'Pyramid of spheres collapses under gravity. Many simultaneous contacts as spheres fall and collide. Watch heap and events/s spike during collapse, then return to normal.',
+      proves:'⚠ Simultaneous collapse · event rate spike · heap absorbs complexity',
+      grav:400,rest:100,
+      ctrl:[{id:'cc-pyn',l:'Base count',min:2,max:10,val:5,step:1}],
+      setup(eng,gc){
+        eng.setBounds(300,300);
+        const n=gc('cc-pyn',5),r=12,m=80,sp=r*2.2;
+        for(let row=0;row<n;row++)
+          for(let col=0;col<=row;col++){
+            const x=(col-row/2)*sp,y=eng.H-((row+1)*sp+1),z=0;
+            eng.addBody(new THREE.Vector3(x,y,z),new THREE.Vector3(0,0,0),m,r,new THREE.Color(.8,.82,.9));
+          }
+      }
+    },
+};
+
+    // ══════════════════════════════════════════════════════════════
+    // APP CONTROLLER
+    // ══════════════════════════════════════════════════════════════
+    class App {
+      constructor() {
+        this.mode = '2d';
+        this.timeMode = 'LIVE';
+        this.timeScale = 1;
+        this.simT = 0;
+        this.lastReal = performance.now() / 1000;
+        this.fps = 0;
+        this.fpsSmoothed = 60;
+        this.currentScene = Object.keys(SCENES)[0];
+        this.sceneParamEls = new Map();
+        this.sceneParamVals = new Map();
+
+        this.cv2 = document.getElementById('c2');
+        this.cv3Wrap = document.getElementById('c3');
+        this.sympEl = document.getElementById('symp');
+        this.infoName = document.getElementById('inf-name');
+        this.infoDesc = document.getElementById('inf-desc');
+        this.infoProves = document.getElementById('inf-proves');
+        this.sbList = document.getElementById('sblist');
+        this.scInner = document.getElementById('sc-inner');
+
+        this.engine = null;
+        this.r2d = null;
+        this.r3d = null;
+
+        this.showTrails = true;
+        this.showVec = false;
+
+        this._wireGlobalControls();
+        this._buildSceneList();
+        this._setScene(this.currentScene, true);
+
+        window.addEventListener('resize', () => {
+          if (this.r2d) this.r2d._resize();
+          if (this.r3d) this.r3d.resize();
+        });
+
+        requestAnimationFrame(() => this._loop());
+      }
+
+      _wireGlobalControls() {
+        const sg = document.getElementById('sg');
+        const se = document.getElementById('se');
+        const st = document.getElementById('st');
+        const strl = document.getElementById('strl');
+
+        sg.addEventListener('input', () => {
+          const gy = Number(sg.value);
+          document.getElementById('vg').textContent = String(gy);
+          if (this.engine) this.engine.setGravity(gy, this.simT);
+        });
+
+        se.addEventListener('input', () => {
+          const e = Number(se.value) / 100;
+          document.getElementById('ve').textContent = e.toFixed(2);
+          if (this.engine) this.engine.en = e;
+        });
+
+        st.addEventListener('input', () => {
+          this.timeScale = Number(st.value) / 100;
+          document.getElementById('vt').textContent = `${this.timeScale.toFixed(2)}×`;
+        });
+
+        strl.addEventListener('input', () => {
+          const len = Number(strl.value);
+          document.getElementById('vtrl').textContent = String(len);
+          if (this.r2d) this.r2d.trailMax = len;
+          if (this.r3d) this.r3d.trailMax = len;
+        });
+      }
+
+      _buildSceneList() {
+        this.sbList.innerHTML = '';
+        const groups = new Map();
+        for (const [key, sc] of Object.entries(SCENES)) {
+          if (!groups.has(sc.group)) groups.set(sc.group, []);
+          groups.get(sc.group).push([key, sc]);
+        }
+
+        let firstGroup = true;
+        for (const [groupName, entries] of groups.entries()) {
+          if (!firstGroup) {
+            const sep = document.createElement('div');
+            sep.className = 'sep';
+            this.sbList.appendChild(sep);
+          }
+          firstGroup = false;
+
+          const title = document.createElement('div');
+          title.className = 'sg-title';
+          title.textContent = groupName;
+          this.sbList.appendChild(title);
+
+          for (const [key, sc] of entries) {
+            const item = document.createElement('div');
+            item.className = `sitem ${key === this.currentScene ? 'on' : ''}`;
+            item.dataset.sceneKey = key;
+            item.innerHTML = `<span class="si-name">${sc.name}</span><span class="si-tag">${key}</span>`;
+            item.addEventListener('click', () => this._setScene(key));
+            this.sbList.appendChild(item);
+          }
+        }
+      }
+
+      _setScene(sceneKey, firstLoad = false) {
+        this.currentScene = sceneKey;
+        const sc = SCENES[sceneKey];
+        if (!sc) return;
+
+        this.infoName.textContent = sc.name;
+        this.infoDesc.textContent = sc.desc;
+        this.infoProves.textContent = sc.proves;
+
+        const items = this.sbList.querySelectorAll('.sitem');
+        for (const el of items) el.classList.toggle('on', el.dataset.sceneKey === sceneKey);
+
+        const sg = document.getElementById('sg');
+        const se = document.getElementById('se');
+        sg.value = String(sc.grav ?? 400);
+        se.value = String(sc.rest ?? 100);
+        document.getElementById('vg').textContent = sg.value;
+        document.getElementById('ve').textContent = (Number(se.value) / 100).toFixed(2);
+
+        this._buildSceneParams(sc);
+
+        if (firstLoad) this.reset();
+        else this.reset();
+      }
+
+      _buildSceneParams(sc) {
+        this.sceneParamEls.clear();
+        this.scInner.innerHTML = '';
+        const ctrls = sc.ctrl || [];
+        for (const c of ctrls) {
+          const wrap = document.createElement('div');
+          const row = document.createElement('div');
+          row.className = 'pr';
+
+          const lab = document.createElement('span');
+          lab.className = 'pl';
+          lab.textContent = c.l;
+
+          const val = document.createElement('span');
+          val.className = 'pv';
+          const cached = this.sceneParamVals.has(c.id) ? this.sceneParamVals.get(c.id) : c.val;
+          val.textContent = String(cached);
+
+          const input = document.createElement('input');
+          input.type = 'range';
+          input.min = String(c.min);
+          input.max = String(c.max);
+          input.step = String(c.step ?? 1);
+          input.value = String(cached);
+          input.id = c.id;
+          input.addEventListener('input', () => {
+            val.textContent = input.value;
+            this.sceneParamVals.set(c.id, Number(input.value));
+          });
+
+          row.appendChild(lab);
+          row.appendChild(val);
+          wrap.appendChild(row);
+          wrap.appendChild(input);
+
+          this.scInner.appendChild(wrap);
+          this.sceneParamEls.set(c.id, input);
+          this.sceneParamVals.set(c.id, Number(input.value));
+        }
+      }
+
+      _gc = (id, fallback) => {
+        if (!this.sceneParamEls.has(id)) return fallback;
+        return Number(this.sceneParamEls.get(id).value);
+      };
+
+      setMode(mode) {
+        this.mode = mode === '3d' ? '3d' : '2d';
+        document.getElementById('m2d').classList.toggle('on', this.mode === '2d');
+        document.getElementById('m3d').classList.toggle('on', this.mode === '3d');
+        this.reset();
+      }
+
+      tm(mode) {
+        this.timeMode = mode;
+        const ids = ['bl', 'bs', 'br', 'bp'];
+        for (const id of ids) document.getElementById(id).classList.remove('on');
+        if (mode === 'LIVE') document.getElementById('bl').classList.add('on');
+        if (mode === 'SLOW') document.getElementById('bs').classList.add('on');
+        if (mode === 'REV') document.getElementById('br').classList.add('on');
+        if (mode === 'PAUSE') document.getElementById('bp').classList.add('on');
+      }
+
+      reset() {
+        this.engine = new TFEngine(this.mode);
+        const sc = SCENES[this.currentScene];
+        this.engine.en = Number(document.getElementById('se').value) / 100;
+        this.engine.setGravity(Number(document.getElementById('sg').value), 0);
+        sc.setup(this.engine, this._gc);
+        this.engine.startPredictions();
+
+        this.simT = 0;
+        this.lastReal = performance.now() / 1000;
+
+        if (this.mode === '2d') {
+          this.cv2.style.display = 'block';
+          this.cv3Wrap.style.display = 'none';
+          this.cv3Wrap.innerHTML = '';
+          this.r3d = null;
+          this.r2d = new R2D(this.cv2, this.engine);
+          this.r2d.showTrails = this.showTrails;
+          this.r2d.showVec = this.showVec;
+        } else {
+          this.cv2.style.display = 'none';
+          this.cv3Wrap.style.display = 'block';
+          this.cv3Wrap.innerHTML = '';
+          this.r2d = null;
+          this.r3d = new R3D(this.cv3Wrap, this.engine);
+          this.r3d.showTrails = this.showTrails;
+          this.r3d.showVec = this.showVec;
+        }
+
+        this._syncToggleUI();
+        this._updateStats(0);
+      }
+
+      spawnRandom() {
+        if (!this.engine) return;
+        const r = 10 + Math.random() * 14;
+        const m = r ** 3 * 0.01;
+        const p = new THREE.Vector3(
+          (Math.random() * 2 - 1) * (this.engine.W - r - 5),
+          (Math.random() * 2 - 1) * (this.engine.H - r - 5),
+          this.mode === '3d' ? (Math.random() * 2 - 1) * (this.engine.D - r - 5) : 0
+        );
+        const v = new THREE.Vector3(
+          (Math.random() * 2 - 1) * 260,
+          (Math.random() * 2 - 1) * 260,
+          this.mode === '3d' ? (Math.random() * 2 - 1) * 260 : 0
+        );
+        const id = this.engine.addBody(p, v, m, r, rp((this.engine._idc + 3) % PAL.length));
+        this.engine._predictFor(id);
+        this.engine.initE = this.engine.totalE(this.simT);
+      }
+
+      clearTrails() {
+        if (this.r2d) this.r2d.clearTrails();
+        if (this.r3d) this.r3d.clearTrails();
+      }
+
+      togTrails() {
+        this.showTrails = !this.showTrails;
+        if (this.r2d) this.r2d.showTrails = this.showTrails;
+        if (this.r3d) this.r3d.showTrails = this.showTrails;
+        this._syncToggleUI();
+      }
+
+      togVec() {
+        this.showVec = !this.showVec;
+        if (this.r2d) this.r2d.showVec = this.showVec;
+        if (this.r3d) this.r3d.showVec = this.showVec;
+        this._syncToggleUI();
+      }
+
+      _syncToggleUI() {
+        document.getElementById('tg-tr').classList.toggle('on', this.showTrails);
+        document.getElementById('tg-v').classList.toggle('on', this.showVec);
+      }
+
+      _timeDelta(dtReal) {
+        if (this.timeMode === 'PAUSE') return 0;
+        if (this.timeMode === 'LIVE') return dtReal * this.timeScale;
+        if (this.timeMode === 'SLOW') return dtReal * this.timeScale * 0.2;
+        if (this.timeMode === 'REV') return -dtReal * this.timeScale * 0.8;
+        return dtReal * this.timeScale;
+      }
+
+      _updateStats(dtReal) {
+        if (!this.engine) return;
+        this.fps = dtReal > 1e-6 ? (1 / dtReal) : 0;
+        this.fpsSmoothed = this.fpsSmoothed * 0.9 + this.fps * 0.1;
+
+        const e0 = this.engine.initE;
+        const et = this.engine.totalE(this.simT);
+        const drift = Math.abs(e0) > 1e-8 ? ((et - e0) / Math.abs(e0)) * 100 : 0;
+        const driftStr = `${drift >= 0 ? '+' : ''}${drift.toFixed(4)}%`;
+
+        const cacheTotal = this.engine.cacheHits + this.engine.cacheMisses;
+        const cachePct = cacheTotal > 0 ? (this.engine.cacheHits / cacheTotal) * 100 : 0;
+
+        document.getElementById('sfps').textContent = this.fpsSmoothed.toFixed(0);
+        document.getElementById('sobj').textContent = String(this.engine.bodies.size);
+        document.getElementById('sevs').textContent = String(this.engine.evtLast);
+        document.getElementById('shp').textContent = String(this.engine.heap.size);
+        document.getElementById('sed').textContent = driftStr;
+        document.getElementById('sed').className = `sv ${Math.abs(drift) < 0.02 ? 'g' : 'b'}`;
+        document.getElementById('sms').textContent = String(this.engine.maxSimul);
+        document.getElementById('spo').textContent = String(this.engine.projOps);
+        document.getElementById('sch').textContent = `${cachePct.toFixed(1)}%`;
+        document.getElementById('sst').textContent = `${this.simT.toFixed(3)}s`;
+
+        this.sympEl.style.display = 'block';
+        document.getElementById('sy-ms').textContent = String(this.engine.maxSimul);
+        document.getElementById('sy-m').textContent = `${this.engine.maxSimul}×${this.engine.maxSimul}`;
+        document.getElementById('sy-po').textContent = String(this.engine.projOps);
+        document.getElementById('sy-cd').textContent = this.mode === '2d' ? '2D' : '3D';
+        document.getElementById('sy-ed').textContent = driftStr;
+        document.getElementById('sy-it').textContent = '200';
+      }
+
+      _loop() {
+        const now = performance.now() / 1000;
+        const dtReal = Math.max(0, Math.min(0.05, now - this.lastReal));
+        this.lastReal = now;
+
+        if (this.engine) {
+          const ds = this._timeDelta(dtReal);
+          this.simT = Math.max(0, this.simT + ds);
+          if (ds >= 0) this.engine.advance(this.simT);
+          this.engine.tick(this.simT);
+
+          if (this.r2d) this.r2d.draw(this.simT, this.simT);
+          if (this.r3d) this.r3d.draw(this.simT, this.simT);
+
+          this._updateStats(dtReal);
+        }
+
+        requestAnimationFrame(() => this._loop());
+      }
+    }
+
+    const A = new App();
+    </script>
+    </body>
+    </html>
