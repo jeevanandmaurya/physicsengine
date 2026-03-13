@@ -143,7 +143,7 @@ input[type=range]:hover::-webkit-slider-thumb{background:var(--ac);}
     <div class="sy-r">M matrix&nbsp;<span class="sy-v" id="sy-m">0×0</span></div>
     <div class="sy-r">proj ops&nbsp;<span class="sy-v" id="sy-po">0</span></div>
     <div class="sy-r">config dim&nbsp;<span class="sy-v" id="sy-cd">0D</span></div>
-    <div class="sy-r">energy drift&nbsp;<span class="sy-v" id="sy-ed">0%</span></div>
+    <div class="sy-r">energy shift&nbsp;<span class="sy-v" id="sy-ed">0%</span></div>
     <div class="sy-r">PGS iters&nbsp;<span class="sy-v" id="sy-it">200</span></div>
     <div id="sy-db" style="display:none; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px; text-align:left; background:rgba(0,0,0,0.4); padding:10px; border-radius:4px;">
       <div class="sy-hd" style="color:var(--t1); margin-bottom:6px;">DEBUG INSPECTOR</div>
@@ -177,7 +177,7 @@ input[type=range]:hover::-webkit-slider-thumb{background:var(--ac);}
   <div class="st"><div class="sl">OBJECTS</div><div class="sv cy" id="sobj">0</div></div>
   <div class="st"><div class="sl">EVENTS/S</div><div class="sv" id="sevs">0</div></div>
   <div class="st"><div class="sl">HEAP</div><div class="sv" id="shp">0</div></div>
-  <div class="st"><div class="sl">ENERGY DRIFT</div><div class="sv g" id="sed">+0.0000%</div></div>
+  <div class="st"><div class="sl">ENERGY SHIFT</div><div class="sv g" id="sed">+0.0000%</div></div>
   <div class="st"><div class="sl">MAX SIMUL.</div><div class="sv v" id="sms">0</div></div>
   <div class="st"><div class="sl">PROJ OPS</div><div class="sv v" id="spo">0</div></div>
   <div class="st"><div class="sl">CACHE HITS</div><div class="sv" id="sch">0%</div></div>
@@ -256,21 +256,46 @@ class TF{
 // Returns: impulse magnitudes P[k]
 // Converges for PSD M (always true for rigid body contacts)
 // ══════════════════════════════════════════════════════════════
-function solvePGS(M,b,k,maxIter=200,tol=1e-11){
+function solvePGS(M,b,k,maxIter=500,tol=1e-13){
   const P=new Float64Array(k);
   let lastErr=Infinity;
+  
+  // Pre-calculate inverse diagonals for faster inner loop
+  const diagInv = new Float64Array(k);
+  for(let i=0; i<k; i++) {
+    const d = M[i*k+i];
+    diagInv[i] = (d > 1e-15) ? 1.0 / d : 0.0;
+  }
+
   for(let it=0;it<maxIter;it++){
     let err=0;
     for(let a=0;a<k;a++){
-      const d=M[a*k+a];if(d<1e-15)continue;
+      const dInv = diagInv[a];
+      if(dInv === 0.0) continue;
+      
       let w=-b[a];
-      for(let c=0;c<k;c++)w+=M[a*k+c]*P[c];
-      const np=Math.max(0,P[a]-w/d);
-      err=Math.max(err,Math.abs(np-P[a]));
+      const rowOffset = a * k;
+      // Hot loop: unrolled slightly or kept extremely tight
+      for(let c=0;c<k;c++){
+        w += M[rowOffset+c] * P[c];
+      }
+      
+      const newPa = P[a] - w * dInv;
+      const np = newPa > 0 ? newPa : 0; // Math.max(0, val) is slower than ternary
+      
+      const diff = np - P[a];
+      const absDiff = diff > 0 ? diff : -diff; // Math.abs is slower than branching
+      if (absDiff > err) err = absDiff;
+      
       P[a]=np;
     }
     if(err<tol)break;
-    if(Math.abs(err-lastErr)<tol*1e-3)break; // stagnation
+    
+    // Check stagnation
+    let stagnation = err - lastErr;
+    if (stagnation < 0) stagnation = -stagnation;
+    if(stagnation < tol*1e-4)break;
+    
     lastErr=err;
   }
   return P;
@@ -296,6 +321,7 @@ class TFEngine{
     this.cacheHits=0;this.cacheMisses=0;
     this._cache=new Map();
     this.initE=0;
+    this.refE=1;
     this._buildWalls();
   }
 
@@ -319,7 +345,7 @@ class TFEngine{
     this.bodies.clear();this.history.clear();this.heap.clear();
     this._cache.clear();this.cacheHits=0;this.cacheMisses=0;
     this._idc=0;this.evtSec=0;this.evtLast=0;
-    this.maxSimul=0;this.projOps=0;this.initE=0;
+    this.maxSimul=0;this.projOps=0;this.initE=0;this.refE=1;
   }
 
   addBody(p,v,mass,radius,color){
@@ -345,6 +371,7 @@ class TFEngine{
       }
     }
     this.initE=this.totalE(0);
+    this.refE=this.totalAbsE(0);
   }
 
   setGravity(gy,t=0){
@@ -356,6 +383,7 @@ class TFEngine{
     this.heap.clear();this._cache.clear();
     for(const[id]of this.bodies)this._predictFor(id);
     this.initE=this.totalE(t);
+    this.refE=this.totalAbsE(t);
   }
 
   advance(tgt){
@@ -393,6 +421,17 @@ class TFEngine{
       if(fn)e+=fn.E(t);
     }
     return e;
+  }
+
+  totalAbsE(t){
+    let e=0;
+    for(const[id]of this.bodies){
+      const h=this.history.get(id);
+      let fn=this.bodies.get(id);
+      if(h)for(let i=h.length-1;i>=0;i--)if(h[i].t0<=t+EPS){fn=h[i];break;}
+      if(fn)e+=(fn.KE(t)+Math.abs(fn.PE(t)));
+    }
+    return Math.max(e,1e-8);
   }
 
   // ── INTERNAL PHYSICS ───────────────────────────────────────
@@ -546,7 +585,54 @@ class TFEngine{
     // For elastic (en≈1): rescale CM-frame velocities so KE_cm_after = KE_cm_before
     // This corrects floating-point drift while preserving momentum exactly.
     const hasWall=active.some(c=>c.type==='wall');
-    if(this.en>=0.999&&!hasWall)this._fixEnergy(bids,VB,VA);
+    if(!hasWall){
+      if(this.en>=0.999)this._fixEnergy(bids,VB,VA);
+      else{
+        // Even for inelastic, ensure float errors don't CREATE energy in CM frame
+        let M=0,cmx=0,cmy=0,cmz=0;
+        for(const id of bids){const fn=this.bodies.get(id),v=VB.get(id);M+=fn.mass;cmx+=fn.mass*v.x;cmy+=fn.mass*v.y;cmz+=fn.mass*v.z;}
+        if(M>EPS){
+          cmx/=M;cmy/=M;cmz/=M;
+          let Kb=0,Ka=0;
+          for(const id of bids){
+            const fn=this.bodies.get(id),vb=VB.get(id),va=VA.get(id);
+            Kb+=0.5*fn.mass*((vb.x-cmx)**2+(vb.y-cmy)**2+(vb.z-cmz)**2);
+            Ka+=0.5*fn.mass*((va.x-cmx)**2+(va.y-cmy)**2+(va.z-cmz)**2);
+          }
+          if(Ka>Kb&&Ka>1e-12){
+            const s=Math.sqrt(Kb/Ka);
+            for(const id of bids){const va=VA.get(id);va.x=cmx+(va.x-cmx)*s;va.y=cmy+(va.y-cmy)*s;va.z=cmz+(va.z-cmz)*s;}
+          }
+        }
+      }
+    }else{
+      // Static walls do zero work. LCP numerical errors (especially with high mass ratios) 
+      // can artificially inflate or deflate kinetic energy. 
+      let Kb=0,Ka=0;
+      for(const id of bids){
+        const fn=this.bodies.get(id),vb=VB.get(id),va=VA.get(id);
+        Kb+=0.5*fn.mass*(vb.x*vb.x+vb.y*vb.y+vb.z*vb.z);
+        Ka+=0.5*fn.mass*(va.x*va.x+va.y*va.y+va.z*va.z);
+      }
+      if(Ka>1e-12){
+        const allHighVel = active.every(c => Math.abs(c.vrn) >= 1.0);
+        if(this.en >= 0.999 && allHighVel) {
+          // Pure elastic bounce against wall: Kinetic energy must be perfectly conserved.
+          const s=Math.sqrt(Kb/Ka);
+          for(const id of bids){
+            const va=VA.get(id);
+            va.x*=s;va.y*=s;va.z*=s;
+          }
+        } else if(Ka>Kb) {
+          // If inelastic or micro-bounce, only apply ceiling cap.
+          const s=Math.sqrt(Kb/Ka);
+          for(const id of bids){
+            const va=VA.get(id);
+            va.x*=s;va.y*=s;va.z*=s;
+          }
+        }
+      }
+    }
 
     // ── POSITION CORRECTION (push apart) ──────────────────────
     for(const c of active){
@@ -786,39 +872,61 @@ class R2D{
 
   _drawDebug(ctx, t, state){
     ctx.save();
+    
+    // Find minTc valid event time for each active body (for simultaneous collisions)
+    const minTc = new Map();
+    for(const ev of this.eng.heap.d){
+      if(ev.tc <= t) continue;
+      const b1 = this.eng.bodies.get(ev.ia); if(!b1 || b1.gen !== ev.ga) continue;
+      if(ev.ib !== null){ const b2 = this.eng.bodies.get(ev.ib); if(!b2 || b2.gen !== ev.gb) continue; }
+      
+      if(!minTc.has(ev.ia) || ev.tc < minTc.get(ev.ia)) minTc.set(ev.ia, ev.tc);
+      if(ev.ib !== null && (!minTc.has(ev.ib) || ev.tc < minTc.get(ev.ib))) minTc.set(ev.ib, ev.tc);
+    }
+
     // Draw trajectories
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     for(const [id, body] of state){
       ctx.beginPath();
       ctx.strokeStyle = `rgba(${body.color.r*255|0},${body.color.g*255|0},${body.color.b*255|0},0.5)`;
-      const b = this.eng.bodies.get(id); // actual body to get equation
+      const b = this.eng.bodies.get(id);
       if(!b) continue;
+
+      const nextTc = minTc.has(id) ? minTc.get(id) : t + 2.0;
       
       const s0 = this.toS(b.pos(t));
       ctx.moveTo(s0.x, s0.y);
-      let step = 0.05, maxT = t + 2.0; 
-      for(let ct = t + step; ct <= maxT; ct += step){
+      let step = 0.05; 
+      for(let ct = t + step; ct < nextTc; ct += step){
         const p = this.toS(b.pos(ct));
         ctx.lineTo(p.x, p.y);
       }
+      const pEnd = this.toS(b.pos(Math.min(nextTc, t + 2.5)));
+      ctx.lineTo(pEnd.x, pEnd.y);
       ctx.stroke();
     }
     ctx.setLineDash([]);
     
-    // Draw heap intersection events
+    // Draw heap intersection events (dots)
     for(const ev of this.eng.heap.d){
       if(ev.tc <= t) continue;
+      
+      const b1 = this.eng.bodies.get(ev.ia); if(!b1 || b1.gen !== ev.ga) continue;
+      // Strict filter: only draw if it's explicitly part of the minimum timeframe for all participants
+      let valid = Math.abs(ev.tc - minTc.get(ev.ia)) < 1e-6;
+      if(ev.ib !== null){
+        const b2 = this.eng.bodies.get(ev.ib); if(!b2 || b2.gen !== ev.gb) continue;
+        valid = valid && Math.abs(ev.tc - minTc.get(ev.ib)) < 1e-6;
+      }
+      if(!valid) continue;
 
       let pos = null;
       if(ev.ib !== null){
-        const b1 = this.eng.bodies.get(ev.ia), b2 = this.eng.bodies.get(ev.ib);
-        if(!b1 || !b2) continue;
-        const p1 = b1.pos(ev.tc), p2 = b2.pos(ev.tc);
+        const p1 = b1.pos(ev.tc), p2 = this.eng.bodies.get(ev.ib).pos(ev.tc);
         pos = { x: (p1.x + p2.x)*0.5, y: (p1.y + p2.y)*0.5 };
       }else if(ev.wid !== null){
-        const b = this.eng.bodies.get(ev.ia);
-        if(b) pos = b.pos(ev.tc);
+        pos = b1.pos(ev.tc);
       }
       
       if(pos){
@@ -988,6 +1096,17 @@ class R3D{
       this.dbgLines = new Map();
       this.dbgDots = [];
     }
+
+    // Find minTc valid event time for each active body
+    const minTc = new Map();
+    for(const ev of this.eng.heap.d){
+      if(ev.tc <= t) continue;
+      const b1 = this.eng.bodies.get(ev.ia); if(!b1 || b1.gen !== ev.ga) continue;
+      if(ev.ib !== null){ const b2 = this.eng.bodies.get(ev.ib); if(!b2 || b2.gen !== ev.gb) continue; }
+      
+      if(!minTc.has(ev.ia) || ev.tc < minTc.get(ev.ia)) minTc.set(ev.ia, ev.tc);
+      if(ev.ib !== null && (!minTc.has(ev.ib) || ev.tc < minTc.get(ev.ib))) minTc.set(ev.ib, ev.tc);
+    }
     
     // Trajectories
     const activeIds = new Set();
@@ -995,6 +1114,8 @@ class R3D{
       activeIds.add(id);
       const b = this.eng.bodies.get(id);
       if(!b) continue;
+
+      const nextTc = minTc.has(id) ? minTc.get(id) : t + 2.5;
       
       let line = this.dbgLines.get(id);
       if(!line){
@@ -1008,11 +1129,15 @@ class R3D{
       }
       
       const posArr = line.geometry.attributes.position.array;
-      let step=0.05, maxT=t+2.5, i=0;
-      for(let ct=t; ct<=maxT && i<50; ct+=step, i++){
+      let step=0.05, i=0;
+      for(let ct=t; ct<nextTc && i<49; ct+=step, i++){
         const p = b.pos(ct);
         posArr[i*3]=p.x; posArr[i*3+1]=p.y; posArr[i*3+2]=p.z;
       }
+      const pEnd = b.pos(Math.min(nextTc, t+2.5));
+      posArr[i*3]=pEnd.x; posArr[i*3+1]=pEnd.y; posArr[i*3+2]=pEnd.z;
+      i++;
+
       line.geometry.attributes.position.needsUpdate = true;
       line.geometry.setDrawRange(0, i);
       line.computeLineDistances();
@@ -1032,11 +1157,17 @@ class R3D{
     for(const ev of this.eng.heap.d){
       if(ev.tc <= t) continue;
       
+      const b1 = this.eng.bodies.get(ev.ia); if(!b1 || b1.gen !== ev.ga) continue;
+      let valid = Math.abs(ev.tc - minTc.get(ev.ia)) < 1e-6;
+      if(ev.ib !== null){
+        const b2 = this.eng.bodies.get(ev.ib); if(!b2 || b2.gen !== ev.gb) continue;
+        valid = valid && Math.abs(ev.tc - minTc.get(ev.ib)) < 1e-6;
+      }
+      if(!valid) continue;
+      
       let pos = null;
       if(ev.ib !== null){
-        const b1 = this.eng.bodies.get(ev.ia), b2 = this.eng.bodies.get(ev.ib);
-        if(!b1 || !b2) continue;
-        const p1 = b1.pos(ev.tc), p2 = b2.pos(ev.tc);
+        const p1 = b1.pos(ev.tc), p2 = this.eng.bodies.get(ev.ib).pos(ev.tc);
         pos = new THREE.Vector3((p1.x+p2.x)*0.5, (p1.y+p2.y)*0.5, (p1.z+p2.z)*0.5);
       } else if(ev.wid !== null){
         const b = this.eng.bodies.get(ev.ia);
@@ -1610,6 +1741,7 @@ const SCENES={
           this.r2d = new R2D(this.cv2, this.engine);
           this.r2d.showTrails = this.showTrails;
           this.r2d.showVec = this.showVec;
+          this.r2d.showDebug = this.showDebug;
         } else {
           this.cv2.style.display = 'none';
           this.cv3Wrap.style.display = 'block';
@@ -1618,6 +1750,7 @@ const SCENES={
           this.r3d = new R3D(this.cv3Wrap, this.engine);
           this.r3d.showTrails = this.showTrails;
           this.r3d.showVec = this.showVec;
+          this.r3d.showDebug = this.showDebug;
         }
 
         this._syncToggleUI();
@@ -1691,7 +1824,8 @@ const SCENES={
 
         const e0 = this.engine.initE;
         const et = this.engine.totalE(this.simT);
-        const drift = Math.abs(e0) > 1e-8 ? ((et - e0) / Math.abs(e0)) * 100 : 0;
+        const refE = this.engine.refE;
+        const drift = refE > 1e-8 ? ((et - e0) / refE) * 100 : 0;
         const driftStr = `${drift >= 0 ? '+' : ''}${drift.toFixed(4)}%`;
 
         const cacheTotal = this.engine.cacheHits + this.engine.cacheMisses;
